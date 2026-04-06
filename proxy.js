@@ -10,18 +10,51 @@ const BASE   = "https://svcs.ebay.com/services/search/FindingService/v1";
 app.use(cors());
 app.use(express.json());
 
-async function ebayFind(operation, extra) {
-  const params = new URLSearchParams({
-    "OPERATION-NAME":       operation,
-    "SERVICE-VERSION":      "1.13.0",
-    "SECURITY-APPNAME":     APP_ID,
-    "RESPONSE-DATA-FORMAT": "JSON",
-    "REST-PAYLOAD":         "",
-    ...extra,
-  });
-  const res = await fetch(`${BASE}?${params}`);
-  if (!res.ok) throw new Error("eBay HTTP " + res.status);
-  return res.json();
+async function ebayFind(operation, keywords, filters, maxResults) {
+  const params = new URLSearchParams();
+  params.set("OPERATION-NAME",       operation);
+  params.set("SERVICE-VERSION",      "1.13.0");
+  params.set("SECURITY-APPNAME",     APP_ID);
+  params.set("RESPONSE-DATA-FORMAT", "JSON");
+  params.set("REST-PAYLOAD",         "");
+  params.set("keywords",             keywords);
+  params.set("categoryId",           "212");
+  params.set("paginationInput.entriesPerPage", String(maxResults || 10));
+  params.set("outputSelector(0)",    "SellerInfo");
+
+  let fi = 0;
+  for (const [name, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) {
+      value.forEach((v, vi) => {
+        params.set(`itemFilter(${fi}).name`,         name);
+        params.set(`itemFilter(${fi}).value(${vi})`, v);
+      });
+    } else {
+      params.set(`itemFilter(${fi}).name`,  name);
+      params.set(`itemFilter(${fi}).value`, value);
+    }
+    fi++;
+  }
+
+  const url = `${BASE}?${params.toString()}`;
+  const res = await fetch(url);
+  const txt = await res.text();
+
+  let json;
+  try { json = JSON.parse(txt); }
+  catch(e) { throw new Error("eBay non-JSON: " + txt.slice(0, 200)); }
+
+  const respKey = operation === "findCompletedItems"
+    ? "findCompletedItemsResponse"
+    : "findItemsAdvancedResponse";
+
+  const ack = json?.[respKey]?.[0]?.ack?.[0];
+  if (ack === "Failure") {
+    const errMsg = json?.[respKey]?.[0]?.errorMessage?.[0]?.error?.[0]?.message?.[0] || "eBay API error";
+    throw new Error(errMsg);
+  }
+
+  return json;
 }
 
 function parseItems(json, op) {
@@ -36,65 +69,66 @@ function parseItems(json, op) {
     url:       i.viewItemURL?.[0],
     seller:    i.sellerInfo?.[0]?.sellerUserName?.[0],
     condition: i.condition?.[0]?.conditionDisplayName?.[0],
-    image:     i.galleryURL?.[0],
   })).filter(i => i.price > 0);
 }
 
-// Active BIN listings
 app.get("/bin", async (req, res) => {
-  const { q, maxPrice, minPrice } = req.query;
-  if (!q) return res.status(400).json({ error: "q required" });
-  try {
-    const json  = await ebayFind("findItemsAdvanced", {
-      "keywords":                       q,
-      "categoryId":                     "212",
-      "itemFilter(0).name":             "ListingType",
-      "itemFilter(0).value":            "FixedPrice",
-      "itemFilter(1).name":             "MinPrice",
-      "itemFilter(1).value":            minPrice || "1",
-      "itemFilter(1).paramName":        "Currency",
-      "itemFilter(1).paramValue":       "USD",
-      "itemFilter(2).name":             "MaxPrice",
-      "itemFilter(2).value":            maxPrice || "500",
-      "itemFilter(2).paramName":        "Currency",
-      "itemFilter(2).paramValue":       "USD",
-      "sortOrder":                      "PricePlusShippingLowest",
-      "paginationInput.entriesPerPage": "10",
-      "outputSelector(0)":              "SellerInfo",
-      "outputSelector(1)":              "GalleryInfo",
-    });
-    res.json({ items: parseItems(json, "findItemsAdvanced") });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Completed BIN sold comps
-app.get("/sold", async (req, res) => {
   const { q, maxPrice } = req.query;
   if (!q) return res.status(400).json({ error: "q required" });
   try {
-    const json  = await ebayFind("findCompletedItems", {
-      "keywords":                       q,
-      "categoryId":                     "212",
-      "itemFilter(0).name":             "ListingType",
-      "itemFilter(0).value":            "FixedPrice",
-      "itemFilter(1).name":             "SoldItemsOnly",
-      "itemFilter(1).value":            "true",
-      "itemFilter(2).name":             "MaxPrice",
-      "itemFilter(2).value":            maxPrice || "1000",
-      "itemFilter(2).paramName":        "Currency",
-      "itemFilter(2).paramValue":       "USD",
-      "sortOrder":                      "EndTimeSoonest",
-      "paginationInput.entriesPerPage": "10",
-    });
-    res.json({ items: parseItems(json, "findCompletedItems") });
+    const json  = await ebayFind("findItemsAdvanced", q, {
+      "ListingType": "FixedPrice",
+      "MaxPrice":    maxPrice || "500",
+    }, 10);
+    const items = parseItems(json, "findItemsAdvanced")
+      .filter(i => !maxPrice || i.price <= parseFloat(maxPrice));
+    res.json({ items });
   } catch (e) {
+    console.error("/bin error:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-app.get("/ping", (_, res) => res.json({ ok: true }));
+app.get("/sold", async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.status(400).json({ error: "q required" });
+  try {
+    const json  = await ebayFind("findCompletedItems", q, {
+      "ListingType":   "FixedPrice",
+      "SoldItemsOnly": "true",
+    }, 10);
+    const items = parseItems(json, "findCompletedItems");
+    res.json({ items });
+  } catch (e) {
+    console.error("/sold error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Test endpoint — shows exactly what eBay returns for a search
+app.get("/test", async (req, res) => {
+  const q = req.query.q || "Patrick Mahomes 2017 Panini Prizm PSA 10";
+  try {
+    const params = new URLSearchParams();
+    params.set("OPERATION-NAME",       "findItemsAdvanced");
+    params.set("SERVICE-VERSION",      "1.13.0");
+    params.set("SECURITY-APPNAME",     APP_ID);
+    params.set("RESPONSE-DATA-FORMAT", "JSON");
+    params.set("keywords",             q);
+    params.set("categoryId",           "212");
+    params.set("itemFilter(0).name",   "ListingType");
+    params.set("itemFilter(0).value",  "FixedPrice");
+    params.set("paginationInput.entriesPerPage", "3");
+    const r   = await fetch(`${BASE}?${params}`);
+    const txt = await r.text();
+    res.setHeader("Content-Type", "application/json");
+    res.send(txt);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/ping", (_, res) => res.json({ ok: true, appId: APP_ID.slice(0,20) + "..." }));
 app.get("/",    (_, res) => res.json({ service: "CARDARB proxy", status: "running" }));
 
-app.listen(PORT, () => console.log(`CARDARB proxy running on port ${PORT}`));
+app.listen(PORT, () => console.log(`CARDARB proxy on port ${PORT}`));
