@@ -35,10 +35,7 @@ async function getToken() {
 
   const data = await res.json();
 
-  if (!res.ok) {
-    console.error("TOKEN ERROR:", data);
-    throw new Error("Token failed");
-  }
+  if (!res.ok) throw new Error("Token failed");
 
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + (data.expires_in - 120) * 1000;
@@ -47,34 +44,47 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// 🔥 FILTER LOGIC (THIS IS HUGE)
+// FILTER
 // ─────────────────────────────────────
-function isValidCard(title) {
+function isValid(title) {
   const t = title.toLowerCase();
 
-  // ❌ REMOVE JUNK
   if (
     t.includes("lot") ||
-    t.includes("bulk") ||
     t.includes("pack") ||
     t.includes("box") ||
-    t.includes("complete set") ||
-    t.includes("you pick") ||
-    t.includes("your pick") ||
-    t.includes("team set") ||
-    t.includes("divider") ||
-    t.includes("holder") ||
-    t.includes("supplies")
-  ) return false;
-
-  // ❌ REMOVE LOW VALUE BASE
-  if (
-    t.includes("base card") ||
-    t.includes("singles") ||
-    t.includes("insert set")
+    t.includes("set") ||
+    t.includes("you pick")
   ) return false;
 
   return true;
+}
+
+// ─────────────────────────────────────
+// MARKET PRICE (median of comps)
+// ─────────────────────────────────────
+function getMarketPrice(listings) {
+  const prices = listings.map(l => l.price).filter(p => p > 5).sort((a,b)=>a-b);
+
+  if (prices.length === 0) return null;
+
+  const mid = Math.floor(prices.length / 2);
+  return prices[mid];
+}
+
+// ─────────────────────────────────────
+// OFFER ENGINE 🔥
+// ─────────────────────────────────────
+function getOfferStrategy(price, market, roiTarget = 0.2) {
+  if (!market) return null;
+
+  const maxBuy = market * (1 - roiTarget);
+
+  return {
+    startOffer: +(maxBuy * 0.8).toFixed(2),
+    maxOffer: +maxBuy.toFixed(2),
+    targetProfit: +(market - maxBuy).toFixed(2)
+  };
 }
 
 // ─────────────────────────────────────
@@ -102,35 +112,46 @@ async function browse(q) {
       url: i.itemWebUrl,
       bestOffer: i.buyingOptions?.includes("BEST_OFFER") || false
     }))
-    .filter(i => i.price > 5)           // remove junk cheap cards
-    .filter(i => isValidCard(i.title)); // 🔥 filter junk
+    .filter(i => i.price > 5)
+    .filter(i => isValid(i.title));
 }
 
 // ─────────────────────────────────────
 // ROUTES
 // ─────────────────────────────────────
-app.get("/ping", (req, res) => {
-  res.json({ ok: true });
-});
-
 app.get("/scan", async (req, res) => {
   try {
     const query = req.query.binQ || "bowman chrome auto";
 
     const listings = await browse(query);
 
+    const marketPrice = getMarketPrice(listings);
+
+    const deals = listings.map(l => {
+      const strategy = getOfferStrategy(l.price, marketPrice);
+
+      return {
+        ...l,
+        marketPrice,
+        offer: strategy
+      };
+    });
+
     res.json({
-      listings,
-      count: listings.length
+      count: deals.length,
+      marketPrice,
+      deals
     });
 
   } catch (e) {
-    console.error("SCAN ERROR:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ─────────────────────────────────────
+app.get("/ping", (req, res) => {
+  res.json({ ok: true });
+});
+
 app.listen(PORT, () => {
-  console.log("CARDARB LIVE");
+  console.log("ENGINE RUNNING");
 });
