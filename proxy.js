@@ -43,13 +43,12 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// HARD FILTER (FINAL)
+// FILTER
 // ─────────────────────────────────────
 function isJunk(title) {
   const t = title.toLowerCase();
 
   return (
-    // junk listings
     t.includes("pack") ||
     t.includes("lot") ||
     t.includes("break") ||
@@ -57,15 +56,12 @@ function isJunk(title) {
     t.includes("team set") ||
     t.includes("read description") ||
 
-    // fake autos (expanded 🔥)
-    t.includes("ip") ||
-    t.includes("in person") ||
+    t.includes("ip auto") ||
+    t.includes("in person auto") ||
     t.includes("hand signed") ||
-    t.includes("signed card") ||
     t.includes("paper auto") ||
     t.includes("custom auto") ||
     t.includes("leaf") ||
-    t.includes("sticker auto") ||
     t.includes("facsimile")
   );
 }
@@ -79,11 +75,10 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// BUILD QUERY
+// COMP QUERY
 // ─────────────────────────────────────
 function buildCompQuery(title) {
-  const player = getPlayer(title);
-  return `${player} bowman chrome auto`;
+  return `${getPlayer(title)} bowman chrome auto`;
 }
 
 // ─────────────────────────────────────
@@ -93,9 +88,7 @@ async function getComps(token, title) {
   const query = buildCompQuery(title);
 
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
-      encodeURIComponent(query) +
-      "&limit=15",
+    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=15`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -106,19 +99,17 @@ async function getComps(token, title) {
 
   const json = await res.json();
 
-  const filtered = (json.itemSummaries || []).filter(i => {
-    const t = i.title.toLowerCase();
-    return t.includes("auto") && t.includes("bowman") && !isJunk(t);
-  });
-
-  let prices = filtered
+  let prices = (json.itemSummaries || [])
+    .filter(i => {
+      const t = i.title.toLowerCase();
+      return t.includes("auto") && t.includes("bowman") && !isJunk(t);
+    })
     .map(i => parseFloat(i.price?.value || 0))
     .filter(p => p > 5)
     .sort((a, b) => a - b);
 
   if (prices.length < 3) return null;
 
-  // outlier control
   const min = prices[0];
   const max = prices[prices.length - 1];
 
@@ -136,9 +127,7 @@ async function getComps(token, title) {
 // ─────────────────────────────────────
 async function searchEbay(token, query) {
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
-      encodeURIComponent(query) +
-      "&limit=25",
+    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=25`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -152,45 +141,82 @@ async function searchEbay(token, query) {
 }
 
 // ─────────────────────────────────────
-// ENGINE
+// LIQUID PLAYER POOL 🔥
 // ─────────────────────────────────────
-async function findDeals(token, queries, targetCount = 10) {
+const LIQUID_PLAYERS = [
+  "walker jenkins",
+  "dylan crews",
+  "paul skenes",
+  "james wood",
+  "jackson holliday",
+  "elijah green",
+  "max clark",
+  "colt emerson",
+  "cam collier",
+  "kyle teel",
+  "jacob wilson"
+];
+
+// ─────────────────────────────────────
+// CORE ENGINE (ITERATIVE 🔥)
+// ─────────────────────────────────────
+async function findDeals(token, target = 10) {
   const deals = [];
   const seen = new Set();
 
-  for (const q of queries) {
-    const items = await searchEbay(token, q);
+  const queryTiers = [
+    // Tier 1: liquid players
+    LIQUID_PLAYERS.map(p => `${p} bowman chrome auto`),
 
-    for (const item of items) {
-      if (seen.has(item.itemWebUrl)) continue;
-      seen.add(item.itemWebUrl);
+    // Tier 2: broader
+    [
+      "bowman chrome 1st auto",
+      "bowman draft chrome auto",
+      "bowman chrome prospect auto"
+    ],
 
-      const price = parseFloat(item.price?.value || 0);
+    // Tier 3: wide net
+    [
+      "bowman auto",
+      "bowman chrome auto"
+    ]
+  ];
 
-      if (price < 10) continue;
-      if (isJunk(item.title)) continue;
+  for (const tier of queryTiers) {
+    for (const query of tier) {
+      const items = await searchEbay(token, query);
 
-      const market = await getComps(token, item.title);
-      if (!market) continue;
+      for (const item of items) {
+        if (seen.has(item.itemWebUrl)) continue;
+        seen.add(item.itemWebUrl);
 
-      const maxBuy = market * 0.85;
+        const price = parseFloat(item.price?.value || 0);
 
-      if (price <= maxBuy) {
-        deals.push({
-          title: item.title,
-          price,
-          marketPrice: market,
-          url: item.itemWebUrl,
-          bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
-          offer: {
-            startOffer: +(maxBuy * 0.8).toFixed(2),
-            maxOffer: +maxBuy.toFixed(2),
-            profit: +(market - price).toFixed(2)
-          }
-        });
+        if (price < 10) continue;
+        if (isJunk(item.title)) continue;
+
+        const market = await getComps(token, item.title);
+        if (!market) continue;
+
+        const maxBuy = market * 0.85;
+
+        if (price <= maxBuy) {
+          deals.push({
+            title: item.title,
+            price,
+            marketPrice: market,
+            url: item.itemWebUrl,
+            bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
+            offer: {
+              startOffer: +(maxBuy * 0.8).toFixed(2),
+              maxOffer: +maxBuy.toFixed(2),
+              profit: +(market - price).toFixed(2)
+            }
+          });
+        }
+
+        if (deals.length >= target) return deals;
       }
-
-      if (deals.length >= targetCount) return deals;
     }
   }
 
@@ -204,15 +230,7 @@ app.get("/scan", async (req, res) => {
   try {
     const token = await getToken();
 
-    const queries = [
-      "bowman chrome 1st auto",
-      "bowman chrome prospect auto",
-      "bowman draft chrome auto",
-      "bowman chrome refractor auto",
-      "bowman 1st chrome auto"
-    ];
-
-    const deals = await findDeals(token, queries, 12);
+    const deals = await findDeals(token, 12);
 
     res.json({
       count: deals.length,
@@ -230,5 +248,5 @@ app.get("/ping", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("ZERO LEAK ENGINE LIVE");
+  console.log("LIQUIDITY ENGINE LIVE");
 });
