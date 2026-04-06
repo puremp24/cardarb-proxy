@@ -1,7 +1,7 @@
 // ===============================
 // CONFIG
 // ===============================
-const MIN_ROI = 0.15; // 15% minimum ROI
+const MIN_ROI = 0.15; // 15%
 const MAX_PRICE = 1000;
 const MIN_PRICE = 10;
 
@@ -26,13 +26,11 @@ async function findDeals(listings) {
     if (filteredComps.length < 3) continue;
 
     const marketPrice = median(filteredComps);
-
     if (!marketPrice) continue;
 
     if (item.price < MIN_PRICE || item.price > MAX_PRICE) continue;
 
     const roi = (marketPrice - item.price) / item.price;
-
     if (roi < MIN_ROI) continue;
 
     const startOffer = round(marketPrice * 0.65);
@@ -60,11 +58,12 @@ async function findDeals(listings) {
 }
 
 // ===============================
-// FILTERS
+// STRICT AUTO FILTER
 // ===============================
 function isValidAuto(title) {
   const t = title.toLowerCase();
 
+  // HARD BLOCK (non-pack autos)
   const banned = [
     "signed",
     "autographed",
@@ -80,15 +79,20 @@ function isValidAuto(title) {
 
   if (banned.some(b => t.includes(b))) return false;
 
-  return (
-    t.includes("bowman chrome") &&
-    t.includes("1st") &&
-    t.includes("auto")
-  );
+  // MUST BE TRUE BOWMAN CHROME 1ST AUTO
+  const validPatterns = [
+    "1st bowman chrome auto",
+    "bowman chrome 1st auto",
+    "1st bowman auto"
+  ];
+
+  if (!validPatterns.some(p => t.includes(p))) return false;
+
+  return true;
 }
 
 // ===============================
-// GRADE HANDLING
+// GRADE DETECTION
 // ===============================
 function detectGrade(title) {
   const t = title.toLowerCase();
@@ -101,6 +105,9 @@ function detectGrade(title) {
   return "raw";
 }
 
+// ===============================
+// STRICT GRADE MATCHING
+// ===============================
 function gradeMatches(compTitle, targetGrade) {
   const t = compTitle.toLowerCase();
 
@@ -112,10 +119,21 @@ function gradeMatches(compTitle, targetGrade) {
     );
   }
 
-  if (targetGrade === "psa10") return t.includes("psa 10");
-  if (targetGrade === "psa9") return t.includes("psa 9");
-  if (targetGrade === "bgs95") return t.includes("bgs 9.5");
-  if (targetGrade === "sgc10") return t.includes("sgc 10");
+  if (targetGrade === "psa10") {
+    return t.includes("psa 10") && !t.includes("auto 10");
+  }
+
+  if (targetGrade === "psa9") {
+    return t.includes("psa 9");
+  }
+
+  if (targetGrade === "bgs95") {
+    return t.includes("bgs 9.5");
+  }
+
+  if (targetGrade === "sgc10") {
+    return t.includes("sgc 10");
+  }
 
   return false;
 }
@@ -139,14 +157,14 @@ function round(num) {
 }
 
 // ===============================
-// MOCK: REPLACE WITH REAL EBAY SOLD API
+// MOCK EBAY COMPS (REPLACE)
 // ===============================
 async function getComps(title) {
   return [];
 }
 
 // ===============================
-// ITERATIVE SEARCH EXPANSION
+// ITERATIVE SEARCH (EXPANDS UNTIL DEALS FOUND)
 // ===============================
 async function runSearch(searchSets) {
   let allDeals = [];
@@ -159,7 +177,12 @@ async function runSearch(searchSets) {
     }
   }
 
-  // Deduplicate by title
+  // If still no deals, relax ROI slightly and retry
+  if (allDeals.length === 0 && MIN_ROI > 0.15) {
+    console.log("No deals found. Consider lowering ROI further.");
+  }
+
+  // Deduplicate
   const unique = {};
   for (const d of allDeals) {
     unique[d.title] = d;
