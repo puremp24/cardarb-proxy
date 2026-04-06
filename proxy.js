@@ -145,6 +145,34 @@ app.get("/test", async (req, res) => {
   }
 });
 
+// Debug comps endpoint
+app.get("/compstest", async (req, res) => {
+  const q = req.query.q || "Patrick Mahomes 2017 Panini Prizm 269 PSA 10";
+  try {
+    const params = new URLSearchParams();
+    params.set("OPERATION-NAME",       "findCompletedItems");
+    params.set("SERVICE-VERSION",      "1.13.0");
+    params.set("SECURITY-APPNAME",     APP_ID);
+    params.set("RESPONSE-DATA-FORMAT", "JSON");
+    params.set("keywords",             q);
+    params.set("categoryId",           "212");
+    params.set("itemFilter(0).name",   "SoldItemsOnly");
+    params.set("itemFilter(0).value",  "true");
+    params.set("paginationInput.entriesPerPage", "5");
+    const r    = await fetch(`${FINDING_BASE}?${params}`);
+    const json = await r.json();
+    const items = json?.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || [];
+    res.json({
+      count: items.length,
+      items: items.map(i => ({
+        title: i.title?.[0],
+        price: i.sellingStatus?.[0]?.currentPrice?.[0]?.["__value__"],
+        sold:  i.sellingStatus?.[0]?.sellingState?.[0],
+      }))
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/ping", (_, res) => res.json({ ok: true }));
 app.get("/",    (_, res) => res.json({ service: "CARDARB proxy", status: "running" }));
 
