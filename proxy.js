@@ -71,31 +71,59 @@ function strictFilter(items, keywords, maxPrice) {
   });
 }
 
-// ── /scan — main endpoint ─────────────────────────────────────────────────────
+// ── 130point sold comps ───────────────────────────────────────────────────────
+async function getSoldComps(keywords) {
+  try {
+    const url = "https://www.130point.com/sales/?" + new URLSearchParams({
+      query: keywords,
+      format: "json",
+    });
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" }
+    });
+    if (!res.ok) throw new Error("130point " + res.status);
+    const json = await res.json();
+    const sales = (json.sales || json.results || []);
+    return sales
+      .map(s => parseFloat(s.price || s.sale_price || s.amount || 0))
+      .filter(p => p > 0)
+      .sort((a,b) => a-b);
+  } catch(e) {
+    console.log("130point failed:", e.message);
+    return [];
+  }
+}
 // Returns active BIN listings + market price derived from broader search
 app.get("/scan", async (req, res) => {
   const { binQ, soldQ, maxPrice } = req.query;
   if (!binQ) return res.status(400).json({ error: "binQ required" });
-  const mp = parseFloat(maxPrice) || 500;
+  const mp    = parseFloat(maxPrice) || 500;
+  const compQ = soldQ || binQ;
 
   try {
-    // 1. Get active BIN listings for this specific card
+    // 1. Active BIN listings
     const rawListings = await browse(binQ, mp, 20);
     const listings    = strictFilter(rawListings, binQ, mp);
 
-    // 2. Get broader market prices for comp (no price cap, more results)
-    const compQ     = soldQ || binQ;
-    const compRaw   = await browse(compQ, null, 50);
-    const compItems = strictFilter(compRaw, compQ, null).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
+    // 2. Try 130point for real sold comps first
+    let compItems  = await getSoldComps(compQ);
+    let compSource = "130point";
 
-    // Use median of market prices as comp baseline
+    // 3. Fall back to Browse API median if not enough results
+    if (compItems.length < 3) {
+      const compRaw = await browse(compQ, null, 50);
+      compItems  = strictFilter(compRaw, compQ, null).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
+      compSource = "browse_active";
+    }
+
+    // Use median
     let marketPrice = null;
-    if (compItems.length >= 3) {
+    if (compItems.length >= 2) {
       const mid = Math.floor(compItems.length / 2);
       marketPrice = compItems[mid];
     }
 
-    res.json({ listings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8) });
+    res.json({ listings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compSource });
   } catch(e) {
     console.error("/scan:", e.message);
     res.status(500).json({ error: e.message });
