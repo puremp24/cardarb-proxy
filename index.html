@@ -128,7 +128,7 @@ function App() {
 
       try {
         const data = await scanTarget(t);
-        const {listings, marketPrice, compCount, compSample} = data;
+        const {listings, marketPrice, compCount, compSample, compWithImages} = data;
 
         if (!marketPrice) { addLog(`  ↳ No market price data (${compCount} comps)`,"info"); }
         else addLog(`  ↳ Market median: ${f$(marketPrice)} from ${compCount} listings`,"info");
@@ -144,7 +144,7 @@ function App() {
           const deal = {
             id: lst.itemId+"-"+i, sport:t.sport, player:t.player,
             listing:lst, marketPrice, net, roi:r,
-            compSample: compSample||[], compCount,
+            compSample: compSample||[], compCount, compWithImages: compWithImages||[],
             prospectRank:t.prospectRank||0, hypeReason:t.hypeReason||"",
           };
           all.push(deal);
@@ -308,6 +308,17 @@ function App() {
                         {ib&&card.prospectRank>0&&<span style={{fontSize:9,color:"#a855f7",background:"rgba(168,85,247,.12)",padding:"1px 5px",borderRadius:2}}>#{card.prospectRank}</span>}
                       </div>
                       {ib&&card.hypeReason&&<div style={{fontSize:9,color:"#c4b5fd",marginBottom:5,fontStyle:"italic"}}>{card.hypeReason}</div>}
+                      {/* Card image */}
+                      {card.listing.image && (
+                        <div style={{marginBottom:8}}>
+                          <img
+                            src={card.listing.image}
+                            alt={card.listing.title}
+                            style={{width:"100%",maxWidth:180,height:120,objectFit:"contain",borderRadius:4,background:"rgba(255,255,255,.05)",border:"1px solid #1a2a3a"}}
+                            onError={e=>e.target.style.display="none"}
+                          />
+                        </div>
+                      )}
                       <div style={{fontSize:11,color:"#7a9ab0",marginBottom:8,lineHeight:1.4,wordBreak:"break-word"}}>{card.listing.title}</div>
                       <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}>
                         {[
@@ -322,10 +333,26 @@ function App() {
                           </div>
                         ))}
                       </div>
-                      <div style={{display:"flex",gap:3,flexWrap:"wrap",alignItems:"center",marginBottom:10}}>
+                      <div style={{display:"flex",gap:3,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
                         <span style={{fontSize:8,color:"#4a7a9b"}}>MARKET SAMPLE ({card.compCount} listings):</span>
                         {card.compSample.slice(0,6).map((c,i)=><span key={i} style={{fontSize:9,color:"#5a9ab0",background:"rgba(0,150,200,.1)",padding:"1px 5px",borderRadius:2}}>{f$(c)}</span>)}
                       </div>
+                      {/* Comp images for visual verification */}
+                      {card.compWithImages?.length>0&&(
+                        <div style={{marginBottom:10}}>
+                          <div style={{fontSize:8,color:"#4a7a9b",marginBottom:4}}>VERIFY COMPS — tap to check these are the same card:</div>
+                          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                            {card.compWithImages.map((c,i)=>(
+                              <a key={i} href={c.url} target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>
+                                <div style={{background:"rgba(255,255,255,.05)",border:"1px solid #1a2a3a",borderRadius:4,padding:4,width:80}}>
+                                  {c.image&&<img src={c.image} alt={c.title} style={{width:72,height:72,objectFit:"contain",display:"block"}} onError={e=>e.target.style.display="none"}/>}
+                                  <div style={{fontSize:8,color:"#5a9ab0",marginTop:2}}>{f$(c.price)}</div>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                         <a href={card.listing.url} target="_blank" rel="noreferrer" style={{display:"inline-block",background:hot?(ib?"linear-gradient(135deg,#7c3aed,#5b21b6)":"linear-gradient(135deg,#00b87d,#008a5a)"):"rgba(0,150,200,.15)",color:"#fff",textDecoration:"none",padding:"7px 14px",borderRadius:4,fontSize:10,fontWeight:"bold",fontFamily:"inherit",letterSpacing:1,border:hot?"none":"1px solid #1a4a6a",boxShadow:hot?`0 0 12px ${ib?"rgba(168,85,247,.5)":"rgba(0,200,125,.4)"}`:"none"}}>→ VIEW LISTING ↗</a>
                         {card.listing.seller&&<span style={{fontSize:9,color:"#4a7a9b"}}>Seller: {card.listing.seller}</span>}

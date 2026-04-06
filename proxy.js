@@ -118,18 +118,27 @@ app.get("/scan", async (req, res) => {
 
     // Use median
     let marketPrice = null;
+    let compWithImages = [];
     if (compItems.length >= 2) {
       const mid = Math.floor(compItems.length / 2);
       marketPrice = compItems[mid];
     }
 
-    // Filter listings: reject any priced more than 70% below market
-    // (likely a different, cheaper card matched by mistake)
+    // Get comp items with images for visual verification
+    const compRawFull = await browse(compQ, null, 10);
+    compWithImages = strictFilter(compRawFull, compQ, null).slice(0,4).map(i => ({
+      title: i.title,
+      price: i.price,
+      url:   i.url,
+      image: i.image,
+    }));
+
+    // Filter listings: reject any priced more than 80% below market
     const validListings = marketPrice
       ? listings.filter(l => l.price >= marketPrice * 0.20)
       : listings;
 
-    res.json({ listings: validListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compSource });
+    res.json({ listings: validListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compWithImages, compSource });
   } catch(e) {
     console.error("/scan:", e.message);
     res.status(500).json({ error: e.message });
