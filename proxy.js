@@ -51,12 +51,15 @@ async function browse(q, maxPrice, limit) {
 }
 
 // ── Strict title filter ───────────────────────────────────────────────────────
-function strictFilter(items, keywords) {
-  const stop  = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards"]);
+function strictFilter(items, keywords, maxPrice) {
+  const stop  = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","now","generation","insert","parallel","refractor"]);
   const terms = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
   return items.filter(i => {
+    if (i.price <= 0) return false;
+    if (maxPrice && i.price > maxPrice) return false;
     const t = i.title.toLowerCase();
-    return terms.filter(w => t.includes(w)).length >= Math.ceil(terms.length * 0.7);
+    // Require ALL terms to match for precision
+    return terms.every(w => t.includes(w));
   });
 }
 
@@ -70,12 +73,12 @@ app.get("/scan", async (req, res) => {
   try {
     // 1. Get active BIN listings for this specific card
     const rawListings = await browse(binQ, mp, 20);
-    const listings    = strictFilter(rawListings, binQ);
+    const listings    = strictFilter(rawListings, binQ, mp);
 
     // 2. Get broader market prices for comp (no price cap, more results)
-    const compQ    = soldQ || binQ;
-    const compRaw  = await browse(compQ, null, 50);
-    const compItems = strictFilter(compRaw, compQ).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
+    const compQ     = soldQ || binQ;
+    const compRaw   = await browse(compQ, null, 50);
+    const compItems = strictFilter(compRaw, compQ, null).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
 
     // Use median of market prices as comp baseline
     let marketPrice = null;
