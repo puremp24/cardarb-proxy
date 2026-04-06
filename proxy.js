@@ -101,14 +101,21 @@ async function browseSearch(keywords, maxPrice) {
 // ── Terapeak sold data ────────────────────────────────────────────────────────
 async function getTerapeak(keywords) {
   const token = await getToken();
-  const url   = "https://api.ebay.com/sell/analytics/v1/terapeak_product_sales?" +
-    new URLSearchParams({ q: keywords, category_id: "212" });
-  const res = await fetch(url, {
-    headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US" }
-  });
-  const txt = await res.text();
-  if (!res.ok) throw new Error(`Terapeak ${res.status}: ${txt.slice(0,200)}`);
-  return JSON.parse(txt);
+  // Try both endpoint versions
+  const endpoints = [
+    "https://api.ebay.com/sell/analytics/v1/terapeak_product_sales",
+    "https://api.ebay.com/sell/analytics/v1_beta/terapeak_product_sales",
+  ];
+  for (const base of endpoints) {
+    const url = base + "?" + new URLSearchParams({ q: keywords, category_id: "212" });
+    const res = await fetch(url, {
+      headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US", "Content-Type": "application/json" }
+    });
+    const txt = await res.text();
+    console.log(`Terapeak ${base} -> ${res.status}: ${txt.slice(0,200)}`);
+    if (res.ok) return JSON.parse(txt);
+  }
+  throw new Error("Terapeak not available on this account tier");
 }
 
 // ── Main scan endpoint — returns deals for one card target ────────────────────
@@ -168,9 +175,9 @@ app.get("/scan", async (req, res) => {
 
 // ── Test endpoint ─────────────────────────────────────────────────────────────
 app.get("/test", async (req, res) => {
-  const q = req.query.q || "Patrick Mahomes 2017 Panini Prizm 269 PSA 10";
+  const q = req.query.q || "Mahomes 2017 Prizm PSA 10";
   const out = {};
-  try { out.token = "ok"; await getToken(); } catch(e) { out.token = e.message; }
+  try { await getToken(); out.token = "ok"; } catch(e) { out.token = e.message; }
   try { out.finding = await getBIN(q, 500); } catch(e) { out.finding = { error: e.message }; }
   try { out.terapeak = await getTerapeak(q); } catch(e) { out.terapeak = { error: e.message }; }
   try { out.browse = await browseSearch(q, 500); } catch(e) { out.browse = { error: e.message }; }
