@@ -93,8 +93,9 @@ app.get("/sold", async (req, res) => {
   const { q } = req.query;
   if (!q) return res.status(400).json({ error: "q required" });
   try {
+    // Note: SoldItemsOnly alone is sufficient — adding ListingType=FixedPrice
+    // can over-filter and return 0 results. Use sold-only filter only.
     const json  = await ebayFind("findCompletedItems", q, {
-      "ListingType":   "FixedPrice",
       "SoldItemsOnly": "true",
     }, 10);
     const items = parseItems(json, "findCompletedItems");
