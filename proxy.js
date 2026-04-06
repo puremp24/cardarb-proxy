@@ -34,7 +34,6 @@ async function getToken() {
   });
 
   const data = await res.json();
-
   if (!res.ok) throw new Error("Token failed");
 
   cachedToken = data.access_token;
@@ -44,12 +43,13 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// FILTER JUNK + FAKE AUTOS
+// HARD FILTER (FINAL)
 // ─────────────────────────────────────
 function isJunk(title) {
   const t = title.toLowerCase();
 
   return (
+    // junk listings
     t.includes("pack") ||
     t.includes("lot") ||
     t.includes("break") ||
@@ -57,15 +57,16 @@ function isJunk(title) {
     t.includes("team set") ||
     t.includes("read description") ||
 
-    // 🔥 FAKE / NON-TRUE AUTOS
-    t.includes("ip auto") ||
+    // fake autos (expanded 🔥)
+    t.includes("ip") ||
     t.includes("in person") ||
     t.includes("hand signed") ||
+    t.includes("signed card") ||
     t.includes("paper auto") ||
     t.includes("custom auto") ||
-    t.includes("gtp") ||
     t.includes("leaf") ||
-    t.includes("sticker auto")
+    t.includes("sticker auto") ||
+    t.includes("facsimile")
   );
 }
 
@@ -78,7 +79,7 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// BUILD COMP QUERY
+// BUILD QUERY
 // ─────────────────────────────────────
 function buildCompQuery(title) {
   const player = getPlayer(title);
@@ -107,12 +108,7 @@ async function getComps(token, title) {
 
   const filtered = (json.itemSummaries || []).filter(i => {
     const t = i.title.toLowerCase();
-
-    return (
-      t.includes("auto") &&
-      t.includes("bowman") &&
-      !isJunk(t)
-    );
+    return t.includes("auto") && t.includes("bowman") && !isJunk(t);
   });
 
   let prices = filtered
@@ -122,7 +118,7 @@ async function getComps(token, title) {
 
   if (prices.length < 3) return null;
 
-  // OUTLIER FILTER
+  // outlier control
   const min = prices[0];
   const max = prices[prices.length - 1];
 
@@ -156,7 +152,7 @@ async function searchEbay(token, query) {
 }
 
 // ─────────────────────────────────────
-// CORE ENGINE
+// ENGINE
 // ─────────────────────────────────────
 async function findDeals(token, queries, targetCount = 10) {
   const deals = [];
@@ -234,5 +230,5 @@ app.get("/ping", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("CLEAN ENGINE LIVE");
+  console.log("ZERO LEAK ENGINE LIVE");
 });
