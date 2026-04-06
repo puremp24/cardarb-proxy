@@ -13,7 +13,12 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 let cachedToken = null;
 let tokenExpiry = 0;
 
+// ─────────────────────────────────────
+// TOKEN
+// ─────────────────────────────────────
 async function getToken() {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+
   const creds = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
 
   const res = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
@@ -28,19 +33,11 @@ async function getToken() {
     })
   });
 
-  const text = await res.text(); // 🔥 raw response
-
-  console.log("EBAY TOKEN RESPONSE:", text);
-
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error("Invalid JSON from eBay: " + text);
-  }
+  const data = await res.json();
 
   if (!res.ok) {
-    throw new Error("Token failed: " + JSON.stringify(data));
+    console.error("TOKEN ERROR:", data);
+    throw new Error("Token failed");
   }
 
   cachedToken = data.access_token;
@@ -49,11 +46,45 @@ async function getToken() {
   return cachedToken;
 }
 
+// ─────────────────────────────────────
+// 🔥 FILTER LOGIC (THIS IS HUGE)
+// ─────────────────────────────────────
+function isValidCard(title) {
+  const t = title.toLowerCase();
+
+  // ❌ REMOVE JUNK
+  if (
+    t.includes("lot") ||
+    t.includes("bulk") ||
+    t.includes("pack") ||
+    t.includes("box") ||
+    t.includes("complete set") ||
+    t.includes("you pick") ||
+    t.includes("your pick") ||
+    t.includes("team set") ||
+    t.includes("divider") ||
+    t.includes("holder") ||
+    t.includes("supplies")
+  ) return false;
+
+  // ❌ REMOVE LOW VALUE BASE
+  if (
+    t.includes("base card") ||
+    t.includes("singles") ||
+    t.includes("insert set")
+  ) return false;
+
+  return true;
+}
+
+// ─────────────────────────────────────
+// SEARCH
+// ─────────────────────────────────────
 async function browse(q) {
   const token = await getToken();
 
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(q),
+    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(q) + "&limit=50",
     {
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -64,30 +95,42 @@ async function browse(q) {
 
   const json = await res.json();
 
-  return (json.itemSummaries || []).map(i => ({
-    title: i.title,
-    price: parseFloat(i.price?.value || 0),
-    url: i.itemWebUrl,
-    bestOffer: i.buyingOptions?.includes("BEST_OFFER") || false
-  }));
+  return (json.itemSummaries || [])
+    .map(i => ({
+      title: i.title,
+      price: parseFloat(i.price?.value || 0),
+      url: i.itemWebUrl,
+      bestOffer: i.buyingOptions?.includes("BEST_OFFER") || false
+    }))
+    .filter(i => i.price > 5)           // remove junk cheap cards
+    .filter(i => isValidCard(i.title)); // 🔥 filter junk
 }
 
+// ─────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────
 app.get("/ping", (req, res) => {
   res.json({ ok: true });
 });
 
 app.get("/scan", async (req, res) => {
   try {
-    const listings = await browse("baseball cards");
+    const query = req.query.binQ || "bowman chrome auto";
 
-    res.json({ listings });
+    const listings = await browse(query);
+
+    res.json({
+      listings,
+      count: listings.length
+    });
 
   } catch (e) {
-    console.error("FULL ERROR:", e.message);
+    console.error("SCAN ERROR:", e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
+// ─────────────────────────────────────
 app.listen(PORT, () => {
-  console.log("SERVER RUNNING");
+  console.log("CARDARB LIVE");
 });
