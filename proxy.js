@@ -84,8 +84,34 @@ app.get("/bin", async (req, res) => {
   const { q, maxPrice } = req.query;
   if (!q) return res.status(400).json({ error: "q required" });
   try {
+    // Try Finding API first
     const items = await findingSearch(q, maxPrice ? parseFloat(maxPrice) : null, 10);
-    res.json({ items });
+    if (items.length > 0) return res.json({ items });
+
+    // Fallback: Browse API for active listings
+    const url = "https://api.ebay.com/buy/browse/v1/item_summary/search?" + new URLSearchParams({
+      q:            q,
+      category_ids: "212",
+      filter:       "buyingOptions:{FIXED_PRICE}" + (maxPrice ? `,price:[..${maxPrice}]` : ""),
+      sort:         "price",
+      limit:        "10",
+    });
+    const browseRes = await fetch(url, {
+      headers: {
+        "Authorization": `Bearer ${USER_TOKEN}`,
+        "Content-Type":  "application/json",
+        "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+      }
+    });
+    const json = await browseRes.json();
+    const browseItems = (json.itemSummaries || []).map(i => ({
+      itemId: i.itemId,
+      title:  i.title,
+      price:  parseFloat(i.price?.value || "0"),
+      url:    i.itemWebUrl,
+      seller: i.seller?.username,
+    })).filter(i => i.price > 0 && (!maxPrice || i.price <= parseFloat(maxPrice)));
+    res.json({ items: browseItems });
   } catch (e) {
     console.error("/bin:", e.message);
     res.status(500).json({ error: e.message });
