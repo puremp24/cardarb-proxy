@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="CardArb"/>
+<title>CARDARB — Sports Card Arbitrage Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#080c10;font-family:'Courier New',monospace;color:#c8d8e8;overflow-x:hidden}
+  ::-webkit-scrollbar{width:3px}
+  ::-webkit-scrollbar-track{background:#080c10}
+  ::-webkit-scrollbar-thumb{background:#1a3a4a;border-radius:2px}
+  @keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  a:hover{opacity:.85}
+  input[type=range]{accent-color:#00ff9d}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const PROXY     = "https://cardarb-proxy-production.up.railway.app";
+const FEE_RATE  = 0.15;
+const ROI_MIN   = 0.10;
+const MAX_PRICE = 500;
+const MIN_COMPS = 2;
+
+const SC = { baseball:"#e05c3a", football:"#4a9d6f", basketball:"#d4872a", bowman:"#a855f7" };
+const SI = { baseball:"⚾", football:"🏈", basketball:"🏀", bowman:"🔮" };
+
+const TARGETS = [
+  // BASEBALL — most liquid
+  {sport:"baseball",player:"Shohei Ohtani",     binQ:"Shohei Ohtani 2018 Topps Chrome RC PSA 10",         soldQ:"Shohei Ohtani Topps Chrome PSA 10",          maxBuy:400},
+  {sport:"baseball",player:"Ronald Acuna Jr",   binQ:"Ronald Acuna 2018 Topps Chrome Update PSA 10",      soldQ:"Ronald Acuna Topps Chrome PSA 10",           maxBuy:300},
+  {sport:"baseball",player:"Paul Skenes",       binQ:"Paul Skenes 2024 Topps Chrome rookie PSA 10",       soldQ:"Paul Skenes Topps Chrome PSA 10",            maxBuy:500},
+  {sport:"baseball",player:"Gunnar Henderson",  binQ:"Gunnar Henderson 2023 Topps Chrome rookie PSA 10",  soldQ:"Gunnar Henderson Topps Chrome PSA 10",       maxBuy:200},
+  {sport:"baseball",player:"Bobby Witt Jr",     binQ:"Bobby Witt Jr 2022 Topps Chrome rookie PSA 10",     soldQ:"Bobby Witt Jr Topps Chrome PSA 10",          maxBuy:150},
+  // FOOTBALL — most liquid
+  {sport:"football",player:"Patrick Mahomes",   binQ:"Patrick Mahomes 2017 Panini Prizm rookie PSA 10",   soldQ:"Mahomes 2017 Prizm PSA 10",                  maxBuy:500},
+  {sport:"football",player:"Josh Allen",        binQ:"Josh Allen 2018 Panini Prizm rookie PSA 10",        soldQ:"Josh Allen 2018 Prizm PSA 10",               maxBuy:400},
+  {sport:"football",player:"Lamar Jackson",     binQ:"Lamar Jackson 2018 Panini Prizm rookie PSA 10",     soldQ:"Lamar Jackson Prizm PSA 10",                 maxBuy:300},
+  {sport:"football",player:"Caleb Williams",    binQ:"Caleb Williams 2024 Panini Prizm rookie PSA 10",    soldQ:"Caleb Williams Prizm PSA 10",                maxBuy:300},
+  {sport:"football",player:"CJ Stroud",         binQ:"CJ Stroud 2023 Panini Prizm rookie PSA 10",         soldQ:"CJ Stroud Prizm PSA 10",                     maxBuy:200},
+  // BASKETBALL — most liquid
+  {sport:"basketball",player:"Victor Wembanyama",binQ:"Victor Wembanyama 2023 Panini Prizm rookie PSA 10",soldQ:"Wembanyama Prizm PSA 10",                    maxBuy:500},
+  {sport:"basketball",player:"Luka Doncic",     binQ:"Luka Doncic 2018 Panini Prizm rookie PSA 10",       soldQ:"Luka Doncic Prizm PSA 10",                   maxBuy:500},
+  {sport:"basketball",player:"Anthony Edwards", binQ:"Anthony Edwards 2020 Panini Prizm rookie PSA 10",   soldQ:"Anthony Edwards Prizm PSA 10",               maxBuy:300},
+  {sport:"basketball",player:"SGA",             binQ:"Shai Gilgeous-Alexander 2018 Panini Prizm rookie PSA 10",soldQ:"Shai Gilgeous-Alexander Prizm PSA 10",  maxBuy:300},
+  {sport:"basketball",player:"Jayson Tatum",    binQ:"Jayson Tatum 2017 Panini Prizm rookie PSA 10",      soldQ:"Jayson Tatum Prizm PSA 10",                  maxBuy:300},
+  // BOWMAN — most hyped
+  {sport:"bowman",player:"Ethan Salas",         binQ:"Ethan Salas Bowman Chrome auto PSA 10",             soldQ:"Ethan Salas Bowman Chrome auto",              maxBuy:300, prospectRank:1, hypeReason:"#1 overall prospect, switch-hitting catcher, elite upside"},
+  {sport:"bowman",player:"Roman Anthony",       binQ:"Roman Anthony Bowman Chrome 1st auto PSA 10",       soldQ:"Roman Anthony Bowman Chrome auto",            maxBuy:200, prospectRank:2, hypeReason:"Top OF prospect, Red Sox, elite hit tool and power combo"},
+  {sport:"bowman",player:"Jackson Holliday",    binQ:"Jackson Holliday Bowman Chrome 1st auto PSA 10",    soldQ:"Jackson Holliday Bowman Chrome auto",         maxBuy:300, prospectRank:3, hypeReason:"Orioles SS, elite prospect pedigree"},
+  {sport:"bowman",player:"Cam Collier",         binQ:"Cam Collier Bowman Chrome auto PSA 10",             soldQ:"Cam Collier Bowman Chrome auto",              maxBuy:150, prospectRank:8, hypeReason:"Power hitting 3B, Reds, breakout season potential"},
+  {sport:"bowman",player:"Dylan Crews",         binQ:"Dylan Crews Bowman Chrome auto PSA 10",             soldQ:"Dylan Crews Bowman Chrome auto",              maxBuy:150, prospectRank:10, hypeReason:"Nationals OF, 2023 draft pick, power-speed combo"},
+];
+
+const calcROI = (avg, buy) => { const net = avg*(1-FEE_RATE); return {net, roi:(net-buy)/buy}; };
+const f$ = n  => n!=null ? `$${Number(n).toFixed(2)}` : "—";
+const fR = r  => `${r>=0?"+":""}${(r*100).toFixed(1)}%`;
+const slp = ms => new Promise(r=>setTimeout(r,ms));
+
+async function ping() {
+  try {
+    const r = await fetch(`${PROXY}/ping`, {signal:AbortSignal.timeout(8000)});
+    return r.ok;
+  } catch { return false; }
+}
+async function getBIN(q, max) {
+  const r = await fetch(`${PROXY}/bin?q=${encodeURIComponent(q)}&maxPrice=${max}`);
+  if (!r.ok) throw new Error("proxy "+r.status);
+  return (await r.json()).items || [];
+}
+async function getSold(q) {
+  const r = await fetch(`${PROXY}/sold?q=${encodeURIComponent(q)}`);
+  if (!r.ok) throw new Error("proxy "+r.status);
+  return (await r.json()).items || [];
+}
+
+async function scanAll(log, onDeal, signal) {
+  const all = [];
+  for (let i=0; i<TARGETS.length; i++) {
+    if (signal?.aborted) break;
+    const t = TARGETS[i];
+    log(`[${i+1}/${TARGETS.length}] ${t.player} — ${t.binQ.slice(0,42)}…`, "info");
+    try {
+      const [bins, solds] = await Promise.all([getBIN(t.binQ, t.maxBuy), getSold(t.soldQ)]);
+      const prices = solds.map(s=>s.price).filter(p=>p>0);
+      if (prices.length < MIN_COMPS) { log(`  ↳ ${prices.length} comps only — skip`, "info"); continue; }
+      const avg = prices.reduce((a,b)=>a+b,0)/prices.length;
+      for (const lst of bins) {
+        if (!lst.price || lst.price>t.maxBuy) continue;
+        const {net,roi} = calcROI(avg, lst.price);
+        const deal = {
+          id: lst.itemId+"-"+i, sport:t.sport, player:t.player,
+          listing:lst, avgSold:avg, soldComps:prices.slice(0,5),
+          netProceeds:net, roi,
+          prospectRank:t.prospectRank||0, hypeReason:t.hypeReason||"",
+        };
+        all.push(deal);
+        log(roi>=ROI_MIN
+          ? `  🚨 BUY: ${lst.title.slice(0,38)} | ${f$(lst.price)} → ${fR(roi)}`
+          : `  • ${f$(lst.price)} / avg ${f$(avg)} / ROI ${fR(roi)}`,
+          roi>=ROI_MIN?"alert":"info");
+        onDeal(deal);
+      }
+      if (!bins.length) log("  ↳ No active BIN listings","info");
+    } catch(e) {
+      if (e.message.includes("10001") || e.message.includes("RateLimit") || e.message.includes("exceeded")) {
+        log(`  ⏱ eBay rate limit hit — waiting 10s…`, "error");
+        await slp(10000);
+      } else {
+        log("  ⚠ "+e.message,"error");
+      }
+    }
+    await slp(2000);
+  }
+  return all;
+}
+
+function App() {
+  const [deals,    setDeals]    = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [log,      setLog]      = useState([]);
+  const [notifs,   setNotifs]   = useState([]);
+  const [sport,    setSport]    = useState("all");
+  const [roiMin,   setRoiMin]   = useState(0);
+  const [lastScan, setLastScan] = useState(null);
+  const [proxyOk,  setProxyOk]  = useState(null);
+  const [auto,     setAuto]     = useState(false);
+  const [cd,       setCd]       = useState(0);
+  const abort = useRef(null);
+  const intR  = useRef(null);
+  const cdR   = useRef(null);
+  const nid   = useRef(0);
+
+  useEffect(() => { ping().then(setProxyOk); }, []);
+
+  const addLog = useCallback((msg, type="info") => {
+    setLog(p => [...p.slice(-150), {msg,type}]);
+  },[]);
+
+  const pushNotif = useCallback((deal) => {
+    const id = ++nid.current;
+    setNotifs(p => [{id,deal},...p.slice(0,7)]);
+    setTimeout(()=>setNotifs(p=>p.filter(n=>n.id!==id)), 18000);
+  },[]);
+
+  const onDeal = useCallback((deal) => {
+    setDeals(p => [...p,deal].sort((a,b)=>b.roi-a.roi));
+    if (deal.roi>=ROI_MIN) pushNotif(deal);
+  },[pushNotif]);
+
+  const runScan = useCallback(async () => {
+    if (scanning) return;
+    const ok = await ping();
+    setProxyOk(ok);
+    if (!ok) { addLog("❌ Proxy offline — check Railway dashboard","error"); return; }
+    setScanning(true); setLog([]); setDeals([]);
+    addLog(`Scanning ${TARGETS.length} exact card targets…`,"info");
+    abort.current = new AbortController();
+    try {
+      const all = await scanAll(addLog, onDeal, abort.current.signal);
+      const hot = all.filter(d=>d.roi>=ROI_MIN);
+      addLog(`Done — ${all.length} listings | ${hot.length} buy signals`, hot.length?"alert":"success");
+    } catch(e) { addLog("Fatal: "+e.message,"error"); }
+    setLastScan(new Date());
+    setScanning(false);
+  },[scanning,addLog,onDeal]);
+
+  const stop = () => { abort.current?.abort(); setScanning(false); addLog("Stopped.","info"); };
+
+  useEffect(() => {
+    if (auto) {
+      runScan(); setCd(300);
+      intR.current = setInterval(()=>{runScan();setCd(300);},300000);
+      cdR.current  = setInterval(()=>setCd(c=>Math.max(0,c-1)),1000);
+    } else {
+      clearInterval(intR.current); clearInterval(cdR.current); setCd(0);
+    }
+    return ()=>{ clearInterval(intR.current); clearInterval(cdR.current); };
+  },[auto]); // eslint-disable-line
+
+  const tabs     = ["all","baseball","football","basketball","bowman"];
+  const filtered = deals.filter(d=>{
+    if (sport!=="all"&&d.sport!==sport) return false;
+    if (d.roi<roiMin/100) return false;
+    return true;
+  });
+  const hotCount    = deals.filter(d=>d.roi>=ROI_MIN).length;
+  const bowmanCount = deals.filter(d=>d.sport==="bowman").length;
+
+  return (
+    <div style={{minHeight:"100vh",background:"#080c10",overflowX:"hidden"}}>
+      {/* Grid bg */}
+      <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",
+        backgroundImage:"linear-gradient(rgba(0,255,180,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.03) 1px,transparent 1px)",
+        backgroundSize:"40px 40px"}}/>
+
+      {/* Toasts */}
+      <div style={{position:"fixed",top:16,right:16,zIndex:1000,display:"flex",flexDirection:"column",gap:8,maxWidth:290}}>
+        {notifs.map(n=>{
+          const ib=n.deal.sport==="bowman", ac=ib?"#a855f7":"#00ff9d";
+          return (
+            <div key={n.id} style={{
+              background:ib?"linear-gradient(135deg,#1a0030,#2d0060)":"linear-gradient(135deg,#001a0d,#002918)",
+              border:`1px solid ${ac}`,borderLeft:`4px solid ${ac}`,borderRadius:6,padding:"11px 13px",
+              animation:"slideIn .3s ease",boxShadow:`0 0 20px ${ib?"rgba(168,85,247,.3)":"rgba(0,255,157,.3)"}`
+            }}>
+              <div style={{fontSize:9,color:ac,fontWeight:"bold",marginBottom:3}}>
+                🚨 {ib?"PROSPECT BUY":"BUY SIGNAL"} — {n.deal.sport?.toUpperCase()}
+              </div>
+              <div style={{fontSize:12,fontWeight:"bold",color:"#fff",marginBottom:2}}>{n.deal.player}</div>
+              <div style={{fontSize:10,color:"#8ab",marginBottom:5,lineHeight:1.3}}>{n.deal.listing.title?.slice(0,50)}</div>
+              <div style={{display:"flex",gap:8,marginBottom:5}}>
+                <span style={{color:ac,fontWeight:"bold"}}>{fR(n.deal.roi)}</span>
+                <span style={{color:"#ccc",fontSize:11}}>buy {f$(n.deal.listing.price)}</span>
+                <span style={{color:"#7a9",fontSize:11}}>net {f$(n.deal.netProceeds)}</span>
+              </div>
+              <a href={n.deal.listing.url} target="_blank" rel="noreferrer"
+                style={{fontSize:11,color:"#00cfff",textDecoration:"underline"}}>→ OPEN ON EBAY ↗</a>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{maxWidth:1300,margin:"0 auto",padding:"18px 14px",position:"relative",zIndex:1}}>
+
+        {/* Header */}
+        <div style={{marginBottom:20,borderBottom:"1px solid #1a2a3a",paddingBottom:16}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+            <div>
+              <div style={{fontSize:9,letterSpacing:4,color:"#00ff9d",marginBottom:4}}>
+                LIVE EBAY API · EXACT CARDS · REAL PRICES · $500 CAP
+              </div>
+              <h1 style={{fontSize:"clamp(26px,6vw,42px)",fontWeight:900,margin:0,letterSpacing:-1,color:"#fff",lineHeight:1}}>
+                CARD<span style={{color:"#00ff9d"}}>ARB</span>
+              </h1>
+              <div style={{fontSize:10,color:"#4a7a9b",marginTop:3}}>
+                {TARGETS.length} exact targets · live BIN prices · real sold comps
+              </div>
+            </div>
+            <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{
+                fontSize:9,padding:"4px 8px",borderRadius:3,
+                background:proxyOk===true?"rgba(0,255,157,.1)":proxyOk===false?"rgba(255,80,80,.1)":"rgba(255,255,255,.05)",
+                border:`1px solid ${proxyOk===true?"#00ff9d":proxyOk===false?"#ff5050":"#2a3a4a"}`,
+                color:proxyOk===true?"#00ff9d":proxyOk===false?"#ff7070":"#4a7a9b",
+              }}>
+                {proxyOk===true?"● PROXY LIVE":proxyOk===false?"● PROXY OFFLINE":"● CHECKING…"}
+              </div>
+              {lastScan&&<div style={{fontSize:9,color:"#4a6a7a"}}>{lastScan.toLocaleTimeString()}{auto&&<span style={{color:"#00ff9d"}}> · {cd}s</span>}</div>}
+              {scanning&&<button onClick={stop} style={{background:"rgba(255,80,80,.15)",border:"1px solid #ff5050",color:"#ff7070",padding:"7px 11px",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>⏹ STOP</button>}
+              <button onClick={()=>setAuto(a=>!a)} style={{
+                background:auto?"rgba(0,255,157,.15)":"transparent",
+                border:`1px solid ${auto?"#00ff9d":"#2a4a5a"}`,color:auto?"#00ff9d":"#4a7a9b",
+                padding:"7px 11px",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit"
+              }}>{auto?"⏸ AUTO":"▶ AUTO"}</button>
+              <button onClick={runScan} disabled={scanning||proxyOk===false} style={{
+                background:scanning||proxyOk===false?"rgba(0,200,255,.08)":"linear-gradient(135deg,#00b87d,#008a5a)",
+                border:"none",color:"#fff",padding:"9px 18px",borderRadius:4,
+                cursor:scanning||proxyOk===false?"not-allowed":"pointer",
+                fontSize:11,fontWeight:"bold",fontFamily:"inherit",letterSpacing:2,
+                opacity:scanning||proxyOk===false?.6:1,
+                boxShadow:scanning||proxyOk===false?"none":"0 0 18px rgba(0,200,125,.4)"
+              }}>{scanning?"⟳ SCANNING…":"⚡ SCAN NOW"}</button>
+            </div>
+          </div>
+          {proxyOk===false&&(
+            <div style={{marginTop:12,padding:"10px 14px",background:"rgba(255,80,80,.06)",border:"1px solid #ff505033",borderRadius:6}}>
+              <div style={{fontSize:10,color:"#ff8080",fontWeight:"bold",marginBottom:4}}>⚠️ Proxy offline</div>
+              <div style={{fontSize:9,color:"#7a5a5a",lineHeight:1.8}}>
+                Check your Railway dashboard — the proxy may be sleeping. Visit:<br/>
+                <span style={{color:"#f5c842"}}>cardarb-proxy-production.up.railway.app</span><br/>
+                to wake it, then hit SCAN NOW.
+              </div>
+            </div>
+          )}
+          {scanning&&(
+            <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:"#00ff9d",animation:"pulse 1s infinite"}}/>
+              <span style={{fontSize:10,color:"#00cfff"}}>Pulling live listings from eBay API…</span>
+            </div>
+          )}
+        </div>
+
+        {/* Stats */}
+        {deals.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(95px,1fr))",gap:8,marginBottom:16}}>
+            {[
+              {label:"LISTINGS",  val:deals.length, color:"#00cfff"},
+              {label:"BUY SIGNALS",val:hotCount,    color:hotCount>0?"#00ff9d":"#4a7a9b"},
+              {label:"BOWMAN",    val:bowmanCount,   color:"#a855f7"},
+              {label:"BEST ROI",  val:fR(Math.max(...deals.map(d=>d.roi))), color:"#f5c842"},
+              {label:"SCANNED",   val:TARGETS.length, color:"#5a8a9a"},
+            ].map(s=>(
+              <div key={s.label} style={{background:"rgba(255,255,255,.03)",border:"1px solid #1a2a3a",borderRadius:6,padding:"8px 10px"}}>
+                <div style={{fontSize:8,color:"#4a7a9b",letterSpacing:1,marginBottom:2}}>{s.label}</div>
+                <div style={{fontSize:15,fontWeight:"bold",color:s.color}}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 245px",gap:14,alignItems:"start"}}>
+
+          {/* Deals */}
+          <div>
+            {deals.length>0&&(
+              <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
+                {tabs.map(s=>(
+                  <button key={s} onClick={()=>setSport(s)} style={{
+                    background:sport===s?(s==="all"?"#1a3a5a":`${SC[s]||"#555"}28`):"transparent",
+                    border:`1px solid ${sport===s?(s==="all"?"#00cfff":SC[s]||"#555"):"#1a2a3a"}`,
+                    color:sport===s?"#fff":"#4a7a9b",
+                    padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:9,fontFamily:"inherit",letterSpacing:1,textTransform:"uppercase"
+                  }}>{s==="all"?"ALL":s==="bowman"?"🔮 BOWMAN":`${SI[s]} ${s}`}</button>
+                ))}
+                <div style={{display:"flex",alignItems:"center",gap:5,marginLeft:"auto"}}>
+                  <span style={{fontSize:9,color:"#4a7a9b"}}>MIN ROI</span>
+                  <input type="range" min={-50} max={50} value={roiMin}
+                    onChange={e=>setRoiMin(+e.target.value)} style={{width:70}}/>
+                  <span style={{fontSize:9,color:"#00ff9d",minWidth:32}}>{roiMin}%</span>
+                </div>
+              </div>
+            )}
+
+            {filtered.length===0&&!scanning&&(
+              <div style={{textAlign:"center",padding:"46px 20px",border:"1px dashed #1a2a3a",borderRadius:8}}>
+                <div style={{fontSize:40,marginBottom:12}}>📡</div>
+                <div style={{fontSize:12,color:"#4a7a9b",lineHeight:2}}>
+                  {deals.length===0
+                    ? <><strong style={{color:"#00ff9d"}}>SCAN NOW</strong><br/><span style={{fontSize:10}}>{TARGETS.length} exact card targets · live eBay prices · real sold comps · $500 max</span></>
+                    : "No deals match filters"}
+                </div>
+              </div>
+            )}
+
+            {scanning&&deals.length===0&&(
+              <div style={{textAlign:"center",padding:"28px 20px",border:"1px dashed #1a3a2a",borderRadius:8,marginBottom:10}}>
+                <div style={{fontSize:20,marginBottom:8,animation:"spin 2s linear infinite",display:"inline-block"}}>⟳</div>
+                <div style={{fontSize:11,color:"#4a7a9b"}}>Fetching live eBay listings…</div>
+              </div>
+            )}
+
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {filtered.map(card=>{
+                const hot=card.roi>=ROI_MIN, neg=card.roi<0, ib=card.sport==="bowman";
+                const ac=ib?"#a855f7":hot?"#00ff9d":neg?"#ff4a6a":"#f5c842";
+                const profit=card.netProceeds-card.listing.price;
+                return (
+                  <div key={card.id} style={{
+                    background:hot?(ib?"linear-gradient(135deg,rgba(28,0,56,.92),rgba(16,0,32,.96))":"linear-gradient(135deg,rgba(0,34,20,.92),rgba(0,18,11,.96))"):"rgba(255,255,255,.025)",
+                    border:`1px solid ${hot?(ib?"#a855f755":"#00ff9d55"):"#1a2a3a"}`,
+                    borderLeft:`3px solid ${ac}`,borderRadius:6,padding:"12px 14px",position:"relative",
+                    boxShadow:hot?`0 0 18px ${ib?"rgba(168,85,247,.1)":"rgba(0,255,157,.08)"}`:"none"
+                  }}>
+                    <div style={{position:"absolute",top:9,left:14}}>
+                      <span style={{fontSize:8,color:"#00ff9d",background:"rgba(0,255,157,.08)",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>LIVE</span>
+                    </div>
+                    {hot&&<div style={{position:"absolute",top:9,right:10,background:ib?"#a855f7":"#00ff9d",color:ib?"#fff":"#001a0d",fontSize:8,fontWeight:"bold",padding:"2px 7px",borderRadius:2,letterSpacing:2}}>{ib?"🔮 PROSPECT BUY":"🔥 BUY SIGNAL"}</div>}
+                    <div style={{marginTop:20}}>
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3,flexWrap:"wrap"}}>
+                        <span style={{fontSize:8,padding:"2px 6px",borderRadius:2,background:`${SC[card.sport]||"#555"}22`,color:SC[card.sport]||"#888",border:`1px solid ${SC[card.sport]||"#555"}44`,letterSpacing:1}}>
+                          {ib?"🔮 BOWMAN":`${SI[card.sport]} ${card.sport?.toUpperCase()}`}
+                        </span>
+                        <span style={{fontSize:13,fontWeight:"bold",color:"#fff"}}>{card.player}</span>
+                        {ib&&card.prospectRank>0&&<span style={{fontSize:9,color:"#a855f7",background:"rgba(168,85,247,.12)",padding:"1px 5px",borderRadius:2}}>#{card.prospectRank}</span>}
+                      </div>
+                      {ib&&card.hypeReason&&<div style={{fontSize:9,color:"#c4b5fd",marginBottom:5,fontStyle:"italic"}}>{card.hypeReason}</div>}
+                      <div style={{fontSize:11,color:"#7a9ab0",marginBottom:8,lineHeight:1.4,wordBreak:"break-word"}}>{card.listing.title}</div>
+                      <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:8}}>
+                        {[
+                          {l:"BUY PRICE",    v:f$(card.listing.price), c:"#fff"},
+                          {l:"AVG SOLD BIN", v:f$(card.avgSold),       c:"#00cfff"},
+                          {l:"NET 15% FEES", v:f$(card.netProceeds),   c:"#c084fc"},
+                          {l:"PROFIT / ROI", v:f$(profit)+" / "+fR(card.roi), c:ac},
+                        ].map(f=>(
+                          <div key={f.l}>
+                            <div style={{fontSize:8,color:"#4a7a9b",letterSpacing:1,marginBottom:1}}>{f.l}</div>
+                            <div style={{fontSize:13,fontWeight:"bold",color:f.c}}>{f.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:"flex",gap:3,flexWrap:"wrap",alignItems:"center",marginBottom:10}}>
+                        <span style={{fontSize:8,color:"#4a7a9b"}}>SOLD COMPS:</span>
+                        {card.soldComps.map((c,i)=><span key={i} style={{fontSize:9,color:"#5a9ab0",background:"rgba(0,150,200,.1)",padding:"1px 5px",borderRadius:2}}>{f$(c)}</span>)}
+                      </div>
+                      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                        <a href={card.listing.url} target="_blank" rel="noreferrer" style={{
+                          display:"inline-block",
+                          background:hot?(ib?"linear-gradient(135deg,#7c3aed,#5b21b6)":"linear-gradient(135deg,#00b87d,#008a5a)"):"rgba(0,150,200,.15)",
+                          color:"#fff",textDecoration:"none",padding:"7px 14px",borderRadius:4,
+                          fontSize:10,fontWeight:"bold",fontFamily:"inherit",letterSpacing:1,
+                          border:hot?"none":"1px solid #1a4a6a",
+                          boxShadow:hot?`0 0 12px ${ib?"rgba(168,85,247,.5)":"rgba(0,200,125,.4)"}`:"none"
+                        }}>→ VIEW LISTING ↗</a>
+                        {card.listing.seller&&<span style={{fontSize:9,color:"#4a7a9b"}}>Seller: {card.listing.seller}</span>}
+                        <span style={{fontSize:8,color:"#2a4a5a",marginLeft:"auto"}}>15% fee · $500 max</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div style={{position:"sticky",top:16,display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{background:"rgba(0,0,0,.45)",border:"1px solid #0a2a1a",borderRadius:6,overflow:"hidden"}}>
+              <div style={{padding:"8px 12px",background:"rgba(0,255,157,.04)",borderBottom:"1px solid #0a2a1a",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:9,color:"#00ff9d",letterSpacing:2}}>SCAN LOG</span>
+                {scanning&&<span style={{fontSize:8,color:"#00cfff",animation:"pulse 1s infinite"}}>● LIVE</span>}
+              </div>
+              <div style={{height:290,overflowY:"auto",padding:"8px 11px",display:"flex",flexDirection:"column",gap:2}}>
+                {log.length===0
+                  ? <div style={{fontSize:10,color:"#1a3a4a",marginTop:16,textAlign:"center"}}>Awaiting scan…</div>
+                  : [...log].reverse().map((l,i)=>(
+                    <div key={i} style={{fontSize:9,lineHeight:1.5,color:l.type==="alert"?"#00ff9d":l.type==="success"?"#4adf9d":l.type==="error"?"#ff6a7a":"#4a7a8a"}}>{l.msg}</div>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div style={{background:"rgba(0,0,0,.3)",border:"1px solid #1a2a3a",borderRadius:6,padding:11}}>
+              <div style={{fontSize:8,color:"#00cfff",letterSpacing:2,marginBottom:7}}>HOW IT WORKS</div>
+              {[
+                ["Data","eBay Finding API (live)"],
+                ["Listings","Active BIN only"],
+                ["Comps","Completed BIN sales"],
+                ["Prices","Real, not estimates"],
+                ["Max buy","$500"],
+                ["Fees","15% of sale"],
+                ["ROI signal","≥10%"],
+                ["Targets",TARGETS.length+" exact searches"],
+              ].map(([k,v])=>(
+                <div key={k} style={{display:"flex",justifyContent:"space-between",gap:6,fontSize:9,marginBottom:4,borderBottom:"1px solid #0a1a24",paddingBottom:3}}>
+                  <span style={{color:"#4a7a9b"}}>{k}</span>
+                  <span style={{color:"#8aacbc",textAlign:"right"}}>{v}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{background:"rgba(20,0,40,.5)",border:"1px solid #4a1a7a",borderRadius:6,padding:11}}>
+              <div style={{fontSize:8,color:"#a855f7",letterSpacing:2,marginBottom:7}}>🔮 BOWMAN PROSPECTS</div>
+              {TARGETS.filter(t=>t.sport==="bowman").map(t=>(
+                <div key={t.player} style={{marginBottom:7}}>
+                  <div style={{fontSize:9,color:"#c4b5fd",fontWeight:"bold"}}>{t.player} #{t.prospectRank}</div>
+                  <div style={{fontSize:8,color:"#7a6a8a",lineHeight:1.4}}>{t.hypeReason}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
