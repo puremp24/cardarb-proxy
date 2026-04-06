@@ -54,21 +54,35 @@ async function browse(q, maxPrice, limit) {
 
 // ── Strict title filter ───────────────────────────────────────────────────────
 function strictFilter(items, keywords, maxPrice) {
-  const stop     = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other"]);
-  const terms    = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
-  // Words that indicate a different card type — exclude if found in title but NOT in search
-  const badWords = ["generation","refractor","insert","parallel","sapphire","aqua","pink","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice","emergent","freshman","phenoms","luck","choice","downtown","stained","glass","flux","illusions","noir","absolute","certified","national","treasures","flawless"];
+  const stop    = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other","1st","2nd","3rd","auto","psa","bgs","sgc","10","graded"]);
+  const badWords = ["generation","refractor","insert","parallel","sapphire","aqua","pink","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice","emergent","freshman","phenoms","choice","stained","glass","flux","illusions","noir","flawless","gold","silver","orange","purple","green","red","blue","gold","numbered","1/1"];
   const searchHasBad = badWords.filter(w => keywords.toLowerCase().includes(w));
+
+  // Extract meaningful terms — player name words and set name, skip year/numbers
+  const allTerms = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  // Must-match: player name (first 2 words of meaningful terms)
+  // Should-match: remaining set terms (require 60%)
+  const playerTerms = allTerms.slice(0, 2);
+  const setTerms    = allTerms.slice(2);
 
   return items.filter(i => {
     if (i.price <= 0) return false;
     if (maxPrice && i.price > maxPrice) return false;
     const t = i.title.toLowerCase();
-    // Must match ALL key terms
-    if (!terms.every(w => t.includes(w))) return false;
-    // Reject if title has bad words that aren't in the search query
+
+    // Player name terms must ALL match
+    if (!playerTerms.every(w => t.includes(w))) return false;
+
+    // Set terms: require 60% match (flexible for title variations)
+    if (setTerms.length > 0) {
+      const setMatches = setTerms.filter(w => t.includes(w)).length;
+      if (setMatches < Math.ceil(setTerms.length * 0.6)) return false;
+    }
+
+    // Reject bad card type words not in original search
     const titleBad = badWords.filter(w => t.includes(w) && !searchHasBad.includes(w));
     if (titleBad.length > 0) return false;
+
     return true;
   });
 }
@@ -152,6 +166,7 @@ app.get("/scan", async (req, res) => {
     // 1. Active BIN listings
     const rawListings = await browse(binQ, mp, 20);
     const listings    = strictFilter(rawListings, binQ, mp);
+    console.log(`${binQ.slice(0,40)}: ${rawListings.length} raw → ${listings.length} filtered listings`);
 
     // 2. Try 130point for real sold comps first
     let compItems  = await getSoldComps(compQ);
