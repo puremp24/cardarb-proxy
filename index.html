@@ -37,54 +37,30 @@ const SC = { baseball:"#e05c3a", football:"#4a9d6f", basketball:"#d4872a", bowma
 const SI = { baseball:"⚾", football:"🏈", basketball:"🏀", bowman:"🔮" };
 
 const TARGETS = [
-  // BASEBALL
+  // BASEBALL — most liquid
   {sport:"baseball",player:"Shohei Ohtani",     binQ:"Shohei Ohtani 2018 Topps Chrome RC PSA 10",         soldQ:"Shohei Ohtani Topps Chrome PSA 10",          maxBuy:400},
-  {sport:"baseball",player:"Shohei Ohtani",     binQ:"Shohei Ohtani 2018 Topps Chrome RC PSA 9",          soldQ:"Shohei Ohtani Topps Chrome PSA 9",           maxBuy:150},
   {sport:"baseball",player:"Ronald Acuna Jr",   binQ:"Ronald Acuna 2018 Topps Chrome Update PSA 10",      soldQ:"Ronald Acuna Topps Chrome PSA 10",           maxBuy:300},
-  {sport:"baseball",player:"Ronald Acuna Jr",   binQ:"Ronald Acuna 2018 Bowman Chrome Prospect PSA 10",   soldQ:"Ronald Acuna Bowman Chrome PSA 10",          maxBuy:200},
-  {sport:"baseball",player:"Juan Soto",         binQ:"Juan Soto 2018 Topps Chrome rookie PSA 10",         soldQ:"Juan Soto Topps Chrome PSA 10",              maxBuy:250},
   {sport:"baseball",player:"Paul Skenes",       binQ:"Paul Skenes 2024 Topps Chrome rookie PSA 10",       soldQ:"Paul Skenes Topps Chrome PSA 10",            maxBuy:500},
-  {sport:"baseball",player:"Paul Skenes",       binQ:"Paul Skenes 2024 Topps Chrome rookie raw",          soldQ:"Paul Skenes Topps Chrome rookie",            maxBuy:80},
   {sport:"baseball",player:"Gunnar Henderson",  binQ:"Gunnar Henderson 2023 Topps Chrome rookie PSA 10",  soldQ:"Gunnar Henderson Topps Chrome PSA 10",       maxBuy:200},
   {sport:"baseball",player:"Bobby Witt Jr",     binQ:"Bobby Witt Jr 2022 Topps Chrome rookie PSA 10",     soldQ:"Bobby Witt Jr Topps Chrome PSA 10",          maxBuy:150},
-  {sport:"baseball",player:"Julio Rodriguez",   binQ:"Julio Rodriguez 2022 Topps Chrome rookie PSA 10",   soldQ:"Julio Rodriguez Topps Chrome PSA 10",        maxBuy:120},
-  {sport:"baseball",player:"Mookie Betts",      binQ:"Mookie Betts 2014 Topps Chrome rookie PSA 10",      soldQ:"Mookie Betts Topps Chrome PSA 10",           maxBuy:300},
-  {sport:"baseball",player:"Jackson Holliday",  binQ:"Jackson Holliday 2023 Topps Chrome rookie PSA 10",  soldQ:"Jackson Holliday Topps Chrome PSA 10",       maxBuy:200},
-  // FOOTBALL
+  // FOOTBALL — most liquid
   {sport:"football",player:"Patrick Mahomes",   binQ:"Patrick Mahomes 2017 Panini Prizm rookie PSA 10",   soldQ:"Mahomes 2017 Prizm PSA 10",                  maxBuy:500},
-  {sport:"football",player:"Patrick Mahomes",   binQ:"Patrick Mahomes 2017 Panini Prizm rookie PSA 9",    soldQ:"Mahomes 2017 Prizm PSA 9",                   maxBuy:200},
   {sport:"football",player:"Josh Allen",        binQ:"Josh Allen 2018 Panini Prizm rookie PSA 10",        soldQ:"Josh Allen 2018 Prizm PSA 10",               maxBuy:400},
-  {sport:"football",player:"Josh Allen",        binQ:"Josh Allen 2018 Panini Prizm rookie PSA 9",         soldQ:"Josh Allen 2018 Prizm PSA 9",                maxBuy:150},
   {sport:"football",player:"Lamar Jackson",     binQ:"Lamar Jackson 2018 Panini Prizm rookie PSA 10",     soldQ:"Lamar Jackson Prizm PSA 10",                 maxBuy:300},
-  {sport:"football",player:"CJ Stroud",         binQ:"CJ Stroud 2023 Panini Prizm rookie PSA 10",         soldQ:"CJ Stroud Prizm PSA 10",                     maxBuy:200},
   {sport:"football",player:"Caleb Williams",    binQ:"Caleb Williams 2024 Panini Prizm rookie PSA 10",    soldQ:"Caleb Williams Prizm PSA 10",                maxBuy:300},
-  {sport:"football",player:"Caleb Williams",    binQ:"Caleb Williams 2024 Panini Prizm rookie raw",       soldQ:"Caleb Williams Prizm rookie",                maxBuy:60},
-  {sport:"football",player:"Marvin Harrison Jr",binQ:"Marvin Harrison Jr 2024 Panini Prizm rookie PSA 10",soldQ:"Marvin Harrison Jr Prizm PSA 10",            maxBuy:200},
-  {sport:"football",player:"Justin Jefferson",  binQ:"Justin Jefferson 2020 Panini Prizm rookie PSA 10",  soldQ:"Justin Jefferson Prizm PSA 10",              maxBuy:300},
-  {sport:"football",player:"Jayden Daniels",    binQ:"Jayden Daniels 2024 Panini Prizm rookie PSA 10",    soldQ:"Jayden Daniels Prizm PSA 10",                maxBuy:150},
-  {sport:"football",player:"Drake Maye",        binQ:"Drake Maye 2024 Panini Prizm rookie PSA 10",        soldQ:"Drake Maye Prizm PSA 10",                    maxBuy:150},
-  // BASKETBALL
+  {sport:"football",player:"CJ Stroud",         binQ:"CJ Stroud 2023 Panini Prizm rookie PSA 10",         soldQ:"CJ Stroud Prizm PSA 10",                     maxBuy:200},
+  // BASKETBALL — most liquid
   {sport:"basketball",player:"Victor Wembanyama",binQ:"Victor Wembanyama 2023 Panini Prizm rookie PSA 10",soldQ:"Wembanyama Prizm PSA 10",                    maxBuy:500},
-  {sport:"basketball",player:"Victor Wembanyama",binQ:"Victor Wembanyama 2023 Panini Prizm rookie PSA 9", soldQ:"Wembanyama Prizm PSA 9",                     maxBuy:200},
   {sport:"basketball",player:"Luka Doncic",     binQ:"Luka Doncic 2018 Panini Prizm rookie PSA 10",       soldQ:"Luka Doncic Prizm PSA 10",                   maxBuy:500},
-  {sport:"basketball",player:"Luka Doncic",     binQ:"Luka Doncic 2018 Panini Prizm rookie PSA 9",        soldQ:"Luka Doncic Prizm PSA 9",                    maxBuy:200},
-  {sport:"basketball",player:"SGA",             binQ:"Shai Gilgeous-Alexander 2018 Panini Prizm rookie PSA 10",soldQ:"Shai Gilgeous-Alexander Prizm PSA 10",  maxBuy:300},
   {sport:"basketball",player:"Anthony Edwards", binQ:"Anthony Edwards 2020 Panini Prizm rookie PSA 10",   soldQ:"Anthony Edwards Prizm PSA 10",               maxBuy:300},
-  {sport:"basketball",player:"Anthony Edwards", binQ:"Anthony Edwards 2020 Panini Prizm rookie PSA 9",    soldQ:"Anthony Edwards Prizm PSA 9",                maxBuy:100},
-  {sport:"basketball",player:"Chet Holmgren",   binQ:"Chet Holmgren 2022 Panini Prizm rookie PSA 10",     soldQ:"Chet Holmgren Prizm PSA 10",                 maxBuy:150},
-  {sport:"basketball",player:"Nikola Jokic",    binQ:"Nikola Jokic 2015 Panini Prizm rookie PSA 10",      soldQ:"Nikola Jokic Prizm PSA 10",                  maxBuy:500},
+  {sport:"basketball",player:"SGA",             binQ:"Shai Gilgeous-Alexander 2018 Panini Prizm rookie PSA 10",soldQ:"Shai Gilgeous-Alexander Prizm PSA 10",  maxBuy:300},
   {sport:"basketball",player:"Jayson Tatum",    binQ:"Jayson Tatum 2017 Panini Prizm rookie PSA 10",      soldQ:"Jayson Tatum Prizm PSA 10",                  maxBuy:300},
-  {sport:"basketball",player:"Paolo Banchero",  binQ:"Paolo Banchero 2022 Panini Prizm rookie PSA 10",    soldQ:"Paolo Banchero Prizm PSA 10",                maxBuy:150},
-  {sport:"basketball",player:"Stephen Curry",   binQ:"Stephen Curry 2009 Panini Prizm rookie PSA 9",      soldQ:"Stephen Curry Prizm PSA 9",                  maxBuy:400},
-  // BOWMAN CHROME 1ST AUTOS
+  // BOWMAN — most hyped
   {sport:"bowman",player:"Ethan Salas",         binQ:"Ethan Salas Bowman Chrome auto PSA 10",             soldQ:"Ethan Salas Bowman Chrome auto",              maxBuy:300, prospectRank:1, hypeReason:"#1 overall prospect, switch-hitting catcher, elite upside"},
   {sport:"bowman",player:"Roman Anthony",       binQ:"Roman Anthony Bowman Chrome 1st auto PSA 10",       soldQ:"Roman Anthony Bowman Chrome auto",            maxBuy:200, prospectRank:2, hypeReason:"Top OF prospect, Red Sox, elite hit tool and power combo"},
-  {sport:"bowman",player:"Charlee Soto",        binQ:"Charlee Soto Bowman Chrome auto PSA 10",            soldQ:"Charlee Soto Bowman Chrome auto",             maxBuy:150, prospectRank:5, hypeReason:"Elite pitching prospect, filthy stuff, rising fast"},
+  {sport:"bowman",player:"Jackson Holliday",    binQ:"Jackson Holliday Bowman Chrome 1st auto PSA 10",    soldQ:"Jackson Holliday Bowman Chrome auto",         maxBuy:300, prospectRank:3, hypeReason:"Orioles SS, elite prospect pedigree"},
   {sport:"bowman",player:"Cam Collier",         binQ:"Cam Collier Bowman Chrome auto PSA 10",             soldQ:"Cam Collier Bowman Chrome auto",              maxBuy:150, prospectRank:8, hypeReason:"Power hitting 3B, Reds, breakout season potential"},
-  {sport:"bowman",player:"Kyle Teel",           binQ:"Kyle Teel Bowman Chrome auto PSA 10",               soldQ:"Kyle Teel Bowman Chrome auto",                maxBuy:100, prospectRank:15, hypeReason:"Red Sox C, advanced bat, call-up imminent"},
-  {sport:"bowman",player:"Jackson Holliday",    binQ:"Jackson Holliday Bowman Chrome 1st auto PSA 10",    soldQ:"Jackson Holliday Bowman Chrome auto",         maxBuy:300, prospectRank:3, hypeReason:"Orioles SS, son of Matt Holliday, elite prospect pedigree"},
   {sport:"bowman",player:"Dylan Crews",         binQ:"Dylan Crews Bowman Chrome auto PSA 10",             soldQ:"Dylan Crews Bowman Chrome auto",              maxBuy:150, prospectRank:10, hypeReason:"Nationals OF, 2023 draft pick, power-speed combo"},
-  {sport:"bowman",player:"Termarr Johnson",     binQ:"Termarr Johnson Bowman Chrome auto PSA 10",         soldQ:"Termarr Johnson Bowman Chrome auto",          maxBuy:100, prospectRank:12, hypeReason:"Pirates 2B, elite hit tool, comp to Jose Altuve"},
 ];
 
 const calcROI = (avg, buy) => { const net = avg*(1-FEE_RATE); return {net, roi:(net-buy)/buy}; };
@@ -137,8 +113,15 @@ async function scanAll(log, onDeal, signal) {
         onDeal(deal);
       }
       if (!bins.length) log("  ↳ No active BIN listings","info");
-    } catch(e) { log("  ⚠ "+e.message,"error"); }
-    await slp(300);
+    } catch(e) {
+      if (e.message.includes("10001") || e.message.includes("RateLimit") || e.message.includes("exceeded")) {
+        log(`  ⏱ eBay rate limit hit — waiting 10s…`, "error");
+        await slp(10000);
+      } else {
+        log("  ⚠ "+e.message,"error");
+      }
+    }
+    await slp(2000);
   }
   return all;
 }
