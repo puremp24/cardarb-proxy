@@ -41,12 +41,14 @@ async function browse(q, maxPrice, limit) {
   );
   const json = await res.json();
   return (json.itemSummaries || []).map(i => ({
-    itemId: i.itemId,
-    title:  i.title,
-    price:  parseFloat(i.price?.value || "0"),
-    url:    i.itemWebUrl,
-    seller: i.seller?.username,
-    image:  i.image?.imageUrl || null,
+    itemId:       i.itemId,
+    title:        i.title,
+    price:        parseFloat(i.price?.value || "0"),
+    shippingCost: parseFloat(i.shippingOptions?.[0]?.shippingCost?.value || "0"),
+    freeShipping: i.shippingOptions?.[0]?.shippingCostType === "FREE",
+    url:          i.itemWebUrl,
+    seller:       i.seller?.username,
+    image:        i.image?.imageUrl || null,
   })).filter(i => i.price > 0 && (!maxPrice || i.price <= maxPrice));
 }
 
