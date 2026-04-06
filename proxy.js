@@ -47,7 +47,7 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// FILTER JUNK LISTINGS
+// FILTER JUNK
 // ─────────────────────────────────────
 function isJunk(title) {
   const t = title.toLowerCase();
@@ -63,7 +63,7 @@ function isJunk(title) {
 }
 
 // ─────────────────────────────────────
-// EXTRACT PLAYER NAME
+// PLAYER EXTRACTION
 // ─────────────────────────────────────
 function getPlayer(title) {
   const words = title.split(" ");
@@ -71,7 +71,7 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// BUILD COMP QUERY
+// BUILD QUERY
 // ─────────────────────────────────────
 function buildCompQuery(title) {
   const player = getPlayer(title);
@@ -79,13 +79,15 @@ function buildCompQuery(title) {
 }
 
 // ─────────────────────────────────────
-// GET COMPS (SMART + FILTERED)
+// GET COMPS
 // ─────────────────────────────────────
 async function getComps(token, title) {
   const query = buildCompQuery(title);
 
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(query) + "&limit=15",
+    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
+      encodeURIComponent(query) +
+      "&limit=15",
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -116,11 +118,9 @@ async function getComps(token, title) {
     .filter(p => p > 5)
     .sort((a, b) => a - b);
 
-  if (prices.length < 3) return { price: null, confidence: "low" };
+  if (prices.length < 3) return { price: null };
 
-  // ─────────────────────────────────────
   // OUTLIER FILTER
-  // ─────────────────────────────────────
   const min = prices[0];
   const max = prices[prices.length - 1];
 
@@ -128,24 +128,21 @@ async function getComps(token, title) {
     prices = prices.filter(p => p < min * 2);
   }
 
-  if (prices.length < 3) return { price: null, confidence: "low" };
+  if (prices.length < 3) return { price: null };
 
   const median = prices[Math.floor(prices.length / 2)];
 
-  return {
-    price: median,
-    confidence: prices.length >= 5 ? "high" : "medium"
-  };
+  return { price: median };
 }
 
 // ─────────────────────────────────────
-// MAIN SEARCH ENGINE
+// SEARCH EBAY
 // ─────────────────────────────────────
-async function browse(q) {
-  const token = await getToken();
-
+async function searchEbay(token, query) {
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(q) + "&limit=25",
+    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" +
+      encodeURIComponent(query) +
+      "&limit=25",
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -155,66 +152,10 @@ async function browse(q) {
   );
 
   const json = await res.json();
-  const items = json.itemSummaries || [];
-
-  const deals = [];
-
-  for (const item of items) {
-    const price = parseFloat(item.price?.value || 0);
-
-    if (price < 10) continue;
-    if (isJunk(item.title)) continue;
-
-    const comp = await getComps(token, item.title);
-
-    if (!comp.price || comp.confidence === "low") continue;
-
-    const maxBuy = comp.price * 0.75;
-
-    if (price <= maxBuy) {
-      deals.push({
-        title: item.title,
-        price,
-        marketPrice: comp.price,
-        confidence: comp.confidence,
-        url: item.itemWebUrl,
-        bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
-        offer: {
-          startOffer: +(maxBuy * 0.8).toFixed(2),
-          maxOffer: +maxBuy.toFixed(2),
-          profit: +(comp.price - price).toFixed(2)
-        }
-      });
-    }
-  }
-
-  return deals;
+  return json.itemSummaries || [];
 }
 
 // ─────────────────────────────────────
-// ROUTES
+// CORE ENGINE
 // ─────────────────────────────────────
-app.get("/scan", async (req, res) => {
-  try {
-    const query = req.query.binQ || "bowman chrome auto";
-
-    const deals = await browse(query);
-
-    res.json({
-      count: deals.length,
-      deals
-    });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get("/ping", (req, res) => {
-  res.json({ ok: true });
-});
-
-app.listen(PORT, () => {
-  console.log("FINAL ENGINE LIVE");
-});
+async function findDeals(token, queries, targetCount = 10)
