@@ -43,7 +43,7 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// STRICT FILTER (FINAL)
+// STRICT FILTER
 // ─────────────────────────────────────
 function isValidAuto(title) {
   const t = title.toLowerCase();
@@ -51,7 +51,7 @@ function isValidAuto(title) {
   return (
     t.includes("bowman chrome") &&
     t.includes("1st") &&
-    (t.includes("auto") || t.includes("autograph")) &&
+    t.includes("auto") &&
 
     !t.includes("signed") &&
     !t.includes("autographed") &&
@@ -60,9 +60,22 @@ function isValidAuto(title) {
     !t.includes("ip auto") &&
     !t.includes("paper") &&
     !t.includes("leaf") &&
-    !t.includes("custom") &&
-    !t.includes("facsimile")
+    !t.includes("custom")
   );
+}
+
+// ─────────────────────────────────────
+// GRADE DETECTION
+// ─────────────────────────────────────
+function getGrade(title) {
+  const t = title.toLowerCase();
+
+  if (t.includes("psa 10")) return "psa10";
+  if (t.includes("psa 9")) return "psa9";
+  if (t.includes("sgc 10")) return "sgc10";
+  if (t.includes("bgs 9.5")) return "bgs95";
+
+  return "raw";
 }
 
 // ─────────────────────────────────────
@@ -73,13 +86,18 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// COMPS
+// COMPS (SMART)
 // ─────────────────────────────────────
 async function getComps(token, title) {
-  const query = `${getPlayer(title)} bowman chrome 1st auto`;
+  const grade = getGrade(title);
+  let query = `${getPlayer(title)} bowman chrome 1st auto`;
+
+  if (grade !== "raw") {
+    query += ` ${grade.replace("psa", "psa ").replace("sgc", "sgc ")}`;
+  }
 
   const res = await fetch(
-    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=15`,
+    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=20`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -93,8 +111,18 @@ async function getComps(token, title) {
   let prices = (json.itemSummaries || [])
     .filter(i => isValidAuto(i.title))
     .map(i => parseFloat(i.price?.value || 0))
-    .filter(p => p > 15)
+    .filter(p => p > 20)
     .sort((a, b) => a - b);
+
+  if (prices.length < 3) return null;
+
+  const min = prices[0];
+  const max = prices[prices.length - 1];
+
+  // 🔥 REMOVE BAD DATA
+  if (max > min * 2.2) {
+    prices = prices.filter(p => p < min * 1.8);
+  }
 
   if (prices.length < 3) return null;
 
@@ -150,14 +178,15 @@ async function findDeals(token) {
       const price = parseFloat(item.price?.value || 0);
 
       if (!isValidAuto(title)) continue;
-      if (price < 20) continue;
+      if (price < 25) continue;
 
       const market = await getComps(token, title);
       if (!market) continue;
 
-      const roi = (market - price) / price;
+      const profit = market - price;
+      const roi = profit / price;
 
-      if (roi < 0.15 || (market - price) < 15) continue;
+      if (roi < 0.15 || profit < 20) continue;
 
       const maxOffer = +(market * 0.85).toFixed(2);
       const startOffer = +(price * 0.7).toFixed(2);
@@ -171,7 +200,7 @@ async function findDeals(token) {
         offer: {
           startOffer,
           maxOffer,
-          profit: +(market - price).toFixed(2),
+          profit: +profit.toFixed(2),
           roi: +(roi * 100).toFixed(1) + "%"
         }
       });
@@ -204,5 +233,5 @@ app.get("/ping", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("FINAL ENGINE LIVE");
+  console.log("PRO ENGINE LIVE");
 });
