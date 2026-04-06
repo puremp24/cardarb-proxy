@@ -155,45 +155,47 @@ app.get("/scan", async (req, res) => {
     let compItems  = await getSoldComps(compQ);
     let compSource = "130point";
 
-    // 3. Fall back to Browse API median if not enough results
+    // 3. Fall back to Browse API if not enough results
     if (compItems.length < 3) {
       const compRaw = await browse(compQ, null, 50);
       compItems  = strictFilter(compRaw, compQ, null).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
       compSource = "browse_active";
     }
 
-    // Use median
+    // 4. Market price = median
     let marketPrice = null;
-    let compWithImages = [];
     if (compItems.length >= 2) {
-      const mid = Math.floor(compItems.length / 2);
-      marketPrice = compItems[mid];
+      marketPrice = compItems[Math.floor(compItems.length / 2)];
     }
 
-    // Get comp items with images for visual verification
-    const compRawFull = await browse(compQ, null, 10);
+    // 5. Price-sanity filter — reject listings >80% below market median
+    const priceFiltered = marketPrice
+      ? listings.filter(l => l.price >= marketPrice * 0.20)
+      : listings;
+
+    // 6. Get comp images for visual reference
+    const compRawFull  = await browse(compQ, null, 10);
     const compWithImages = strictFilter(compRawFull, compQ, null)
       .filter(i => i.image)
       .slice(0, 4)
       .map(i => ({ title: i.title, price: i.price, url: i.url, image: i.image }));
 
-    // Use first comp image as the "reference" card image
     const refCompImage = compWithImages[0]?.image || null;
 
-    // Vision-validate each listing against the reference comp image
+    // 7. Vision-validate each listing image vs reference comp image
     const validatedListings = [];
-    for (const lst of validListings) {
+    for (const lst of priceFiltered) {
       if (!lst.image || !refCompImage) {
-        lst.imageMatch = null; // unknown
-        validatedListings.push(lst);
-        continue;
-      }
-      const match = await imagesMatch(lst.image, refCompImage);
-      if (match !== false) { // include if match or unknown
-        lst.imageMatch = match;
+        lst.imageMatch = null;
         validatedListings.push(lst);
       } else {
-        console.log(`Image mismatch filtered: ${lst.title.slice(0,40)}`);
+        const match = await imagesMatch(lst.image, refCompImage);
+        if (match !== false) {
+          lst.imageMatch = match;
+          validatedListings.push(lst);
+        } else {
+          console.log("Vision filtered:", lst.title.slice(0, 40));
+        }
       }
     }
 
