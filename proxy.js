@@ -3,7 +3,7 @@ const cors    = require("cors");
 const fetch   = (...a) => import("node-fetch").then(({ default: f }) => f(...a));
 
 const app    = express();
-const PORT   = process.env.PORT || 3001;
+const PORT   = process.env.PORT || 8080;
 const APP_ID = process.env.EBAY_APP_ID || "MatthewP-SportsCa-PRD-eaff948e3-fa21b2a9";
 const BASE   = "https://svcs.ebay.com/services/search/FindingService/v1";
 
