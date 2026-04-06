@@ -35,10 +35,7 @@ async function getToken() {
 
   const data = await res.json();
 
-  if (!res.ok) {
-    console.error(data);
-    throw new Error("Token failed");
-  }
+  if (!res.ok) throw new Error("Token failed");
 
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + (data.expires_in - 120) * 1000;
@@ -47,7 +44,7 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// FILTER JUNK
+// FILTER JUNK + FAKE AUTOS
 // ─────────────────────────────────────
 function isJunk(title) {
   const t = title.toLowerCase();
@@ -58,7 +55,17 @@ function isJunk(title) {
     t.includes("break") ||
     t.includes("pick") ||
     t.includes("team set") ||
-    t.includes("read description")
+    t.includes("read description") ||
+
+    // 🔥 FAKE / NON-TRUE AUTOS
+    t.includes("ip auto") ||
+    t.includes("in person") ||
+    t.includes("hand signed") ||
+    t.includes("paper auto") ||
+    t.includes("custom auto") ||
+    t.includes("gtp") ||
+    t.includes("leaf") ||
+    t.includes("sticker auto")
   );
 }
 
@@ -71,7 +78,7 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// BUILD QUERY
+// BUILD COMP QUERY
 // ─────────────────────────────────────
 function buildCompQuery(title) {
   const player = getPlayer(title);
@@ -104,12 +111,7 @@ async function getComps(token, title) {
     return (
       t.includes("auto") &&
       t.includes("bowman") &&
-      !t.includes("lot") &&
-      !t.includes("reprint") &&
-      !t.includes("pack") &&
-      !t.includes("break") &&
-      !t.includes("pick") &&
-      !t.includes("read")
+      !isJunk(t)
     );
   });
 
@@ -118,7 +120,7 @@ async function getComps(token, title) {
     .filter(p => p > 5)
     .sort((a, b) => a - b);
 
-  if (prices.length < 3) return { price: null };
+  if (prices.length < 3) return null;
 
   // OUTLIER FILTER
   const min = prices[0];
@@ -128,11 +130,9 @@ async function getComps(token, title) {
     prices = prices.filter(p => p < min * 2);
   }
 
-  if (prices.length < 3) return { price: null };
+  if (prices.length < 3) return null;
 
-  const median = prices[Math.floor(prices.length / 2)];
-
-  return { price: median };
+  return prices[Math.floor(prices.length / 2)];
 }
 
 // ─────────────────────────────────────
@@ -160,33 +160,36 @@ async function searchEbay(token, query) {
 // ─────────────────────────────────────
 async function findDeals(token, queries, targetCount = 10) {
   const deals = [];
+  const seen = new Set();
 
   for (const q of queries) {
     const items = await searchEbay(token, q);
 
     for (const item of items) {
+      if (seen.has(item.itemWebUrl)) continue;
+      seen.add(item.itemWebUrl);
+
       const price = parseFloat(item.price?.value || 0);
 
       if (price < 10) continue;
       if (isJunk(item.title)) continue;
 
-      const comp = await getComps(token, item.title);
-      if (!comp.price) continue;
+      const market = await getComps(token, item.title);
+      if (!market) continue;
 
-      // 🔥 15% ROI TARGET
-      const maxBuy = comp.price * 0.85;
+      const maxBuy = market * 0.85;
 
       if (price <= maxBuy) {
         deals.push({
           title: item.title,
           price,
-          marketPrice: comp.price,
+          marketPrice: market,
           url: item.itemWebUrl,
           bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
           offer: {
             startOffer: +(maxBuy * 0.8).toFixed(2),
             maxOffer: +maxBuy.toFixed(2),
-            profit: +(comp.price - price).toFixed(2)
+            profit: +(market - price).toFixed(2)
           }
         });
       }
@@ -206,11 +209,11 @@ app.get("/scan", async (req, res) => {
     const token = await getToken();
 
     const queries = [
-      "bowman chrome auto",
-      "bowman 1st auto",
+      "bowman chrome 1st auto",
       "bowman chrome prospect auto",
-      "bowman draft auto",
-      "bowman chrome refractor auto"
+      "bowman draft chrome auto",
+      "bowman chrome refractor auto",
+      "bowman 1st chrome auto"
     ];
 
     const deals = await findDeals(token, queries, 12);
@@ -231,5 +234,5 @@ app.get("/ping", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("EXPANDED ENGINE LIVE");
+  console.log("CLEAN ENGINE LIVE");
 });
