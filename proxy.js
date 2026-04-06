@@ -52,6 +52,63 @@ async function browse(q, maxPrice, limit) {
   })).filter(i => i.price > 0 && (!maxPrice || i.price <= maxPrice));
 }
 
+// ── Auction search via Finding API — ending within 24hrs ─────────────────────
+const FINDING_BASE = "https://svcs.ebay.com/services/search/FindingService/v1";
+async function searchAuctions(q, maxPrice) {
+  const params = new URLSearchParams();
+  params.set("OPERATION-NAME",       "findItemsAdvanced");
+  params.set("SERVICE-VERSION",      "1.13.0");
+  params.set("SECURITY-APPNAME",     CLIENT_ID);
+  params.set("RESPONSE-DATA-FORMAT", "JSON");
+  params.set("keywords",             q);
+  params.set("categoryId",           "212");
+  params.set("paginationInput.entriesPerPage", "20");
+  params.set("outputSelector(0)",    "SellerInfo");
+  params.set("outputSelector(1)",    "GalleryInfo");
+  // Auction only
+  params.set("itemFilter(0).name",  "ListingType");
+  params.set("itemFilter(0).value", "Auction");
+  // Ending within 24 hours
+  params.set("itemFilter(1).name",  "EndTimeTo");
+  params.set("itemFilter(1).value", new Date(Date.now() + 24*60*60*1000).toISOString());
+  // Max current bid price
+  if (maxPrice) {
+    params.set("itemFilter(2).name",       "MaxPrice");
+    params.set("itemFilter(2).value",      String(maxPrice));
+    params.set("itemFilter(2).paramName",  "Currency");
+    params.set("itemFilter(2).paramValue", "USD");
+  }
+  // Sort by ending soonest
+  params.set("sortOrder", "EndTimeSoonest");
+
+  const res  = await fetch(`${FINDING_BASE}?${params}`);
+  const json = await res.json();
+  const items = json?.findItemsAdvancedResponse?.[0]?.searchResult?.[0]?.item || [];
+
+  const now = Date.now();
+  return items.map(i => {
+    const endTime    = new Date(i.listingInfo?.[0]?.endTime?.[0] || 0).getTime();
+    const hoursLeft  = Math.max(0, (endTime - now) / 3600000);
+    const currentBid = parseFloat(i.sellingStatus?.[0]?.currentPrice?.[0]?.["__value__"] || "0");
+    const shipping   = parseFloat(i.shippingInfo?.[0]?.shippingServiceCost?.[0]?.["__value__"] || "0");
+    return {
+      itemId:      i.itemId?.[0],
+      title:       i.title?.[0],
+      price:       currentBid,        // current bid
+      currentBid,
+      shipping,
+      freeShipping: shipping === 0,
+      shippingCost: shipping,
+      endTime:     new Date(endTime).toISOString(),
+      hoursLeft:   Math.round(hoursLeft * 10) / 10,
+      url:         i.viewItemURL?.[0],
+      seller:      i.sellerInfo?.[0]?.sellerUserName?.[0],
+      image:       i.galleryURL?.[0],
+      isAuction:   true,
+    };
+  }).filter(i => i.currentBid > 0 && i.hoursLeft <= 24 && i.hoursLeft > 0);
+}
+
 // ── Strict title filter ───────────────────────────────────────────────────────
 function strictFilter(items, keywords, maxPrice) {
   const stop    = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other","1st","2nd","3rd","auto","psa","bgs","sgc","10","graded"]);
@@ -219,6 +276,63 @@ app.get("/scan", async (req, res) => {
     res.json({ listings: validatedListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compWithImages, compSource });
   } catch(e) {
     console.error("/scan:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── /scan-auction — auctions ending within 24hrs ─────────────────────────────
+app.get("/scan-auction", async (req, res) => {
+  const { binQ, soldQ, maxPrice } = req.query;
+  if (!binQ) return res.status(400).json({ error: "binQ required" });
+  const mp    = parseFloat(maxPrice) || 500;
+  const compQ = soldQ || binQ;
+
+  try {
+    // 1. Get auctions ending within 24 hours
+    const rawAuctions = await searchAuctions(binQ, mp);
+    const auctions    = strictFilter(rawAuctions, binQ, mp);
+    console.log(`AUCTION ${binQ.slice(0,35)}: ${rawAuctions.length} raw → ${auctions.length} filtered`);
+
+    // 2. Get market price (same as BIN scan)
+    let compItems  = await getSoldComps(compQ);
+    let compSource = "130point";
+    if (compItems.length < 3) {
+      const compRaw = await browse(compQ, null, 50);
+      compItems  = strictFilter(compRaw, compQ, null).map(i => i.price).filter(p => p > 0).sort((a,b)=>a-b);
+      compSource = "browse_active";
+    }
+    let marketPrice = null;
+    if (compItems.length >= 2) {
+      marketPrice = compItems[Math.floor(compItems.length / 2)];
+    }
+
+    // 3. Price sanity filter
+    const priceFiltered = marketPrice
+      ? auctions.filter(a => a.currentBid >= marketPrice * 0.10) // auctions can be very low
+      : auctions;
+
+    // 4. Comp images
+    const compRawFull    = await browse(compQ, null, 10);
+    const compWithImages = strictFilter(compRawFull, compQ, null)
+      .filter(i => i.image).slice(0, 4)
+      .map(i => ({ title: i.title, price: i.price, url: i.url, image: i.image }));
+    const refCompImage = compWithImages[0]?.image || null;
+
+    // 5. Vision validate
+    const validated = [];
+    for (const lst of priceFiltered) {
+      if (!lst.image || !refCompImage) {
+        lst.imageMatch = null; validated.push(lst);
+      } else {
+        const match = await imagesMatch(lst.image, refCompImage);
+        if (match !== false) { lst.imageMatch = match; validated.push(lst); }
+        else console.log("Auction vision filtered:", lst.title.slice(0,40));
+      }
+    }
+
+    res.json({ auctions: validated, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compWithImages, compSource });
+  } catch(e) {
+    console.error("/scan-auction:", e.message);
     res.status(500).json({ error: e.message });
   }
 });

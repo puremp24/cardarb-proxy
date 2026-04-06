@@ -157,8 +157,15 @@ async function scanTarget(t) {
   return r.json();
 }
 
+async function scanAuction(t) {
+  const r = await fetch(`${PROXY}/scan-auction?binQ=${encodeURIComponent(t.binQ)}&soldQ=${encodeURIComponent(t.soldQ)}&maxPrice=${t.maxBuy}`);
+  if (!r.ok) throw new Error("proxy "+r.status);
+  return r.json();
+}
+
 function App() {
   const [deals,    setDeals]    = useState([]);
+  const [auctions, setAuctions] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [log,      setLog]      = useState([]);
   const [notifs,   setNotifs]   = useState([]);
@@ -190,9 +197,10 @@ function App() {
     if (scanning) return;
     const ok = await ping(); setProxyOk(ok);
     if (!ok) { addLog("Proxy offline","error"); return; }
-    setScanning(true); setLog([]); setDeals([]);
+    setScanning(true); setLog([]); setDeals([]); setAuctions([]);
     abort.current = new AbortController();
     const all = [];
+    const allAuctions = [];
 
     const runTargets = async (targets, tierLabel) => {
       addLog(`\n${tierLabel} — scanning ${targets.length} targets…`,"info");
@@ -202,11 +210,18 @@ function App() {
         setProgress({i:i+1, total:targets.length, player:t.player});
         addLog(`[${i+1}/${targets.length}] ${t.player} — ${t.binQ.slice(0,38)}…`,"info");
         try {
-          const data = await scanTarget(t);
+          // Run BIN and auction scans in parallel
+          const [data, auctionData] = await Promise.all([
+            scanTarget(t),
+            scanAuction(t),
+          ]);
+
           const {listings, marketPrice, compCount, compSample, compWithImages} = data;
           if (!marketPrice) { addLog(`  ↳ No market data (${compCount} comps)`,"info"); }
           else addLog(`  ↳ Market: ${f$(marketPrice)} from ${compCount} listings`,"info");
           if (!listings.length) addLog(`  ↳ No BIN listings found`,"info");
+
+          // Process BIN listings
           for (const lst of listings) {
             if (!lst.price || lst.price > t.maxBuy) continue;
             if (!marketPrice) continue;
@@ -219,11 +234,40 @@ function App() {
               totalFees, sellShipping, buyShipping, totalCost,
               compSample: compSample||[], compCount, compWithImages: compWithImages||[],
               prospectRank:t.prospectRank||0, hypeReason:t.hypeReason||"",
+              isAuction: false,
             };
             all.push(deal);
             setDeals([...all].sort((a,b)=>b.roi-a.roi));
-            if (r>=ROI_MIN) { addLog(`  🚨 BUY: ${lst.title.slice(0,36)} | ${f$(lst.price)}+${f$(buyShipping)} → ${fR(r)}`,"alert"); pushNotif(deal); }
-            else addLog(`  • ${f$(lst.price)}+${f$(buyShipping)} / mkt ${f$(marketPrice)} → ${fR(r)}`,"info");
+            if (r>=ROI_MIN) { addLog(`  🔥 BIN BUY: ${lst.title.slice(0,36)} | ${f$(lst.price)}+${f$(buyShipping)} → ${fR(r)}`,"alert"); pushNotif(deal); }
+            else addLog(`  • BIN ${f$(lst.price)}+${f$(buyShipping)} / mkt ${f$(marketPrice)} → ${fR(r)}`,"info");
+          }
+
+          // Process auctions — 20% ROI threshold
+          const {auctions: auctionListings, marketPrice: aMarket} = auctionData;
+          const mkt = aMarket || marketPrice;
+          if (auctionListings?.length) {
+            addLog(`  ↳ ${auctionListings.length} auctions ending <24hrs`,"info");
+            for (const lst of auctionListings) {
+              if (!lst.currentBid || !mkt) continue;
+              const buyShipping = lst.freeShipping ? 0 : (lst.shippingCost || 5);
+              const {net, profit, roi:r, totalFees, sellShipping, totalCost} = calcROI(mkt, lst.currentBid, buyShipping);
+              if (r >= 0.20) { // 20% ROI minimum for auctions
+                const deal = {
+                  id: lst.itemId+"-auction-"+i, sport:t.sport, player:t.player,
+                  listing:lst, marketPrice:mkt, net, profit, roi:r,
+                  totalFees, sellShipping, buyShipping, totalCost,
+                  compSample: compSample||[], compCount, compWithImages: compWithImages||[],
+                  prospectRank:t.prospectRank||0, hypeReason:t.hypeReason||"",
+                  isAuction: true,
+                  hoursLeft: lst.hoursLeft,
+                  endTime: lst.endTime,
+                };
+                allAuctions.push(deal);
+                setAuctions([...allAuctions].sort((a,b)=>a.hoursLeft-b.hoursLeft));
+                addLog(`  🔨 AUCTION: ${lst.title.slice(0,34)} | ${f$(lst.currentBid)} bid → ${fR(r)} ROI | ${lst.hoursLeft}h left`,"alert");
+                pushNotif({...deal, isAuctionAlert:true});
+              }
+            }
           }
         } catch(e) { addLog(`  ⚠ ${e.message}`,"error"); }
         await slp(1500);
@@ -245,7 +289,7 @@ function App() {
     }
 
     const hot = all.filter(d=>d.roi>=ROI_MIN);
-    addLog(`\nDone — ${all.length} listings | ${hot.length} buy signals`,hot.length?"alert":"success");
+    addLog(`\nDone — ${all.length} BIN listings | ${hot.length} BIN signals | ${allAuctions.length} auction deals`,hot.length||allAuctions.length?"alert":"success");
     setLastScan(new Date()); setScanning(false);
     setProgress({i:0,total:0,player:""});
   },[scanning,addLog,pushNotif]);
@@ -327,11 +371,11 @@ function App() {
         {deals.length>0&&(
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:8,marginBottom:16}}>
             {[
-              {label:"LISTINGS",   val:deals.length,  color:"#00cfff"},
-              {label:"BUY SIGNALS",val:hotCount,       color:hotCount>0?"#00ff9d":"#4a7a9b"},
-              {label:"BEST ROI",   val:fR(Math.max(...deals.map(d=>d.roi))), color:"#f5c842"},
-              {label:"BOWMAN",     val:deals.filter(d=>d.sport==="bowman").length, color:"#a855f7"},
-              {label:"UNDER $100", val:deals.filter(d=>d.listing.price<100).length, color:"#34d399"},
+              {label:"BIN LISTINGS",  val:deals.length,        color:"#00cfff"},
+              {label:"BIN SIGNALS",   val:hotCount,             color:hotCount>0?"#00ff9d":"#4a7a9b"},
+              {label:"🔨 AUCTIONS",   val:auctions.length,      color:auctions.length>0?"#f59e0b":"#4a7a9b"},
+              {label:"BEST ROI",      val:deals.length?fR(Math.max(...deals.map(d=>d.roi))):"-", color:"#f5c842"},
+              {label:"UNDER $100",    val:deals.filter(d=>d.listing.price<100).length, color:"#34d399"},
             ].map(s=>(
               <div key={s.label} style={{background:"rgba(255,255,255,.03)",border:"1px solid #1a2a3a",borderRadius:6,padding:"8px 10px"}}>
                 <div style={{fontSize:8,color:"#4a7a9b",letterSpacing:1,marginBottom:2}}>{s.label}</div>
@@ -360,11 +404,64 @@ function App() {
               </div>
             )}
 
+            {/* ── Auction Deals ── */}
+            {auctions.length>0&&(
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{animation:"pulse 1s infinite",display:"inline-block"}}>🔨</span>
+                  AUCTIONS ENDING SOON — 20%+ ROI AT CURRENT BID
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {auctions.map(card=>{
+                    const ac="#f59e0b";
+                    const profit = card.profit || 0;
+                    const hrs = card.hoursLeft || 0;
+                    const urgency = hrs<2?"#ff4a6a":hrs<6?"#f59e0b":"#00ff9d";
+                    return (
+                      <div key={card.id} style={{background:"linear-gradient(135deg,rgba(30,20,0,.95),rgba(20,12,0,.98))",border:`2px solid #f59e0b`,borderRadius:6,padding:"12px 14px",position:"relative",boxShadow:"0 0 20px rgba(245,158,11,.2)"}}>
+                        <div style={{position:"absolute",top:9,left:14,display:"flex",gap:4,alignItems:"center"}}>
+                          <span style={{fontSize:8,color:"#f59e0b",background:"rgba(245,158,11,.15)",border:"1px solid #f59e0b44",padding:"1px 5px",borderRadius:2,fontWeight:"bold"}}>🔨 AUCTION</span>
+                          <span style={{fontSize:8,color:urgency,background:`rgba(0,0,0,.3)`,border:`1px solid ${urgency}44`,padding:"1px 5px",borderRadius:2,fontWeight:"bold"}}>⏱ {hrs}h LEFT</span>
+                          {card.listing.imageMatch===true&&<span style={{fontSize:8,color:"#00ff9d",background:"rgba(0,255,157,.08)",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>✅ VERIFIED</span>}
+                        </div>
+                        <div style={{position:"absolute",top:9,right:10,background:"#f59e0b",color:"#000",fontSize:8,fontWeight:"bold",padding:"2px 7px",borderRadius:2,letterSpacing:1}}>{fR(card.roi)} ROI</div>
+                        <div style={{marginTop:22}}>
+                          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3,flexWrap:"wrap"}}>
+                            <span style={{fontSize:8,padding:"2px 6px",borderRadius:2,background:`${SC[card.sport]||"#555"}22`,color:SC[card.sport]||"#888",border:`1px solid ${SC[card.sport]||"#555"}44`,letterSpacing:1}}>{SI[card.sport]} {card.sport?.toUpperCase()}</span>
+                            <span style={{fontSize:13,fontWeight:"bold",color:"#fff"}}>{card.player}</span>
+                          </div>
+                          {card.listing.image&&<img src={card.listing.image} alt="" style={{width:100,height:80,objectFit:"contain",borderRadius:4,background:"rgba(255,255,255,.05)",border:"1px solid #2a2a1a",marginBottom:6}} onError={e=>e.target.style.display="none"}/>}
+                          <div style={{fontSize:11,color:"#b0a070",marginBottom:8,lineHeight:1.4,wordBreak:"break-word"}}>{card.listing.title}</div>
+                          <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:8}}>
+                            {[
+                              {l:"CURRENT BID",   v:f$(card.listing.currentBid), c:"#fff"},
+                              {l:"BUY SHIPPING",  v:card.listing.freeShipping?"FREE":f$(card.buyShipping||5), c:"#aac"},
+                              {l:"SELL @ MARKET", v:f$(card.marketPrice), c:"#00cfff"},
+                              {l:"NET PROCEEDS",  v:f$(card.net), c:"#c084fc"},
+                              {l:"PROFIT / ROI",  v:f$(profit)+" / "+fR(card.roi), c:ac},
+                            ].map(f=>(
+                              <div key={f.l}>
+                                <div style={{fontSize:8,color:"#7a6a4a",letterSpacing:1,marginBottom:1}}>{f.l}</div>
+                                <div style={{fontSize:12,fontWeight:"bold",color:f.c}}>{f.v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <a href={card.listing.url} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"linear-gradient(135deg,#d97706,#b45309)",color:"#fff",textDecoration:"none",padding:"8px 16px",borderRadius:4,fontSize:10,fontWeight:"bold",fontFamily:"inherit",letterSpacing:1,boxShadow:"0 0 14px rgba(245,158,11,.5)"}}>
+                            🔨 BID NOW — {card.hoursLeft}h LEFT ↗
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {filtered.length===0&&!scanning&&(
               <div style={{textAlign:"center",padding:"46px 20px",border:"1px dashed #1a2a3a",borderRadius:8}}>
                 <div style={{fontSize:40,marginBottom:12}}>📡</div>
                 <div style={{fontSize:12,color:"#4a7a9b",lineHeight:2}}>
-                  {deals.length===0?<><strong style={{color:"#00ff9d"}}>SCAN NOW</strong><br/><span style={{fontSize:10}}>{TARGETS.length} exact card targets · live eBay BIN prices · $500 max</span></>:"No deals match filters"}
+                  {deals.length===0&&auctions.length===0?<><strong style={{color:"#00ff9d"}}>SCAN NOW</strong><br/><span style={{fontSize:10}}>{TIER1.length}+{TIER2.length} card targets · BIN + auctions · $500 max</span></>:"No BIN deals match filters"}
                 </div>
               </div>
             )}
