@@ -55,7 +55,7 @@ function strictFilter(items, keywords, maxPrice) {
   const stop     = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other"]);
   const terms    = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
   // Words that indicate a different card type — exclude if found in title but NOT in search
-  const badWords = ["generation","refractor","prizm","optic","mosaic","select","insert","parallel","gold","silver","chrome","sapphire","aqua","pink","green","orange","purple","red","blue","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice"];
+  const badWords = ["generation","refractor","insert","parallel","sapphire","aqua","pink","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice","emergent","freshman","phenoms","luck","choice","downtown","stained","glass","flux","illusions","noir","absolute","certified","national","treasures","flawless"];
   const searchHasBad = badWords.filter(w => keywords.toLowerCase().includes(w));
 
   return items.filter(i => {
@@ -123,7 +123,13 @@ app.get("/scan", async (req, res) => {
       marketPrice = compItems[mid];
     }
 
-    res.json({ listings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compSource });
+    // Filter listings: reject any priced more than 70% below market
+    // (likely a different, cheaper card matched by mistake)
+    const validListings = marketPrice
+      ? listings.filter(l => l.price >= marketPrice * 0.20)
+      : listings;
+
+    res.json({ listings: validListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compSource });
   } catch(e) {
     console.error("/scan:", e.message);
     res.status(500).json({ error: e.message });
