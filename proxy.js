@@ -182,6 +182,38 @@ app.get("/test", async (req, res) => {
   res.json(out);
 });
 
+
+// One-time auth code exchange
+app.get("/auth", async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: "code required" });
+  try {
+    const creds = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+    const r = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${creds}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type:   "authorization_code",
+        code:         code,
+        redirect_uri: "Matthew_Pells-MatthewP-Sports-sredt",
+      }),
+    });
+    const txt = await r.text();
+    const data = JSON.parse(txt);
+    res.json({
+      access_token:  data.access_token ? data.access_token.slice(0,50)+"..." : null,
+      refresh_token: data.refresh_token || null,
+      expires_in:    data.expires_in,
+      refresh_token_expires_in: data.refresh_token_expires_in,
+      error:         data.error || null,
+      error_description: data.error_description || null,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/ping", (_, res) => res.json({ ok: true }));
 app.get("/",    (_, res) => res.json({ service: "CARDARB proxy", status: "running" }));
 
