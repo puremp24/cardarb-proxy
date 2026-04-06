@@ -34,12 +34,32 @@ async function getToken() {
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error("Token failed");
+
+  if (!res.ok) {
+    console.error(data);
+    throw new Error("Token failed");
+  }
 
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + (data.expires_in - 120) * 1000;
 
   return cachedToken;
+}
+
+// ─────────────────────────────────────
+// FILTER JUNK LISTINGS
+// ─────────────────────────────────────
+function isJunk(title) {
+  const t = title.toLowerCase();
+
+  return (
+    t.includes("pack") ||
+    t.includes("lot") ||
+    t.includes("break") ||
+    t.includes("pick") ||
+    t.includes("team set") ||
+    t.includes("read description")
+  );
 }
 
 // ─────────────────────────────────────
@@ -51,22 +71,21 @@ function getPlayer(title) {
 }
 
 // ─────────────────────────────────────
-// BETTER COMP QUERY 🔥
+// BUILD COMP QUERY
 // ─────────────────────────────────────
 function buildCompQuery(title) {
   const player = getPlayer(title);
-
   return `${player} bowman chrome auto`;
 }
 
 // ─────────────────────────────────────
-// GET COMPS (SMART)
+// GET COMPS (SMART + FILTERED)
 // ─────────────────────────────────────
 async function getComps(token, title) {
   const query = buildCompQuery(title);
 
   const res = await fetch(
-    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(query) + "&limit=12",
+    "https://api.ebay.com/buy/browse/v1/item_summary/search?q=" + encodeURIComponent(query) + "&limit=15",
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -79,18 +98,35 @@ async function getComps(token, title) {
 
   const filtered = (json.itemSummaries || []).filter(i => {
     const t = i.title.toLowerCase();
+
     return (
       t.includes("auto") &&
       t.includes("bowman") &&
       !t.includes("lot") &&
-      !t.includes("reprint")
+      !t.includes("reprint") &&
+      !t.includes("pack") &&
+      !t.includes("break") &&
+      !t.includes("pick") &&
+      !t.includes("read")
     );
   });
 
-  const prices = filtered
+  let prices = filtered
     .map(i => parseFloat(i.price?.value || 0))
     .filter(p => p > 5)
     .sort((a, b) => a - b);
+
+  if (prices.length < 3) return { price: null, confidence: "low" };
+
+  // ─────────────────────────────────────
+  // OUTLIER FILTER
+  // ─────────────────────────────────────
+  const min = prices[0];
+  const max = prices[prices.length - 1];
+
+  if (max > min * 3) {
+    prices = prices.filter(p => p < min * 2);
+  }
 
   if (prices.length < 3) return { price: null, confidence: "low" };
 
@@ -103,7 +139,7 @@ async function getComps(token, title) {
 }
 
 // ─────────────────────────────────────
-// MAIN SEARCH
+// MAIN SEARCH ENGINE
 // ─────────────────────────────────────
 async function browse(q) {
   const token = await getToken();
@@ -125,7 +161,9 @@ async function browse(q) {
 
   for (const item of items) {
     const price = parseFloat(item.price?.value || 0);
+
     if (price < 10) continue;
+    if (isJunk(item.title)) continue;
 
     const comp = await getComps(token, item.title);
 
@@ -168,6 +206,7 @@ app.get("/scan", async (req, res) => {
     });
 
   } catch (e) {
+    console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
