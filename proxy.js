@@ -52,14 +52,22 @@ async function browse(q, maxPrice, limit) {
 
 // ── Strict title filter ───────────────────────────────────────────────────────
 function strictFilter(items, keywords, maxPrice) {
-  const stop  = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","now","generation","insert","parallel","refractor"]);
-  const terms = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  const stop     = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other"]);
+  const terms    = keywords.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  // Words that indicate a different card type — exclude if found in title but NOT in search
+  const badWords = ["generation","refractor","prizm","optic","mosaic","select","insert","parallel","gold","silver","chrome","sapphire","aqua","pink","green","orange","purple","red","blue","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice"];
+  const searchHasBad = badWords.filter(w => keywords.toLowerCase().includes(w));
+
   return items.filter(i => {
     if (i.price <= 0) return false;
     if (maxPrice && i.price > maxPrice) return false;
     const t = i.title.toLowerCase();
-    // Require ALL terms to match for precision
-    return terms.every(w => t.includes(w));
+    // Must match ALL key terms
+    if (!terms.every(w => t.includes(w))) return false;
+    // Reject if title has bad words that aren't in the search query
+    const titleBad = badWords.filter(w => t.includes(w) && !searchHasBad.includes(w));
+    if (titleBad.length > 0) return false;
+    return true;
   });
 }
 
