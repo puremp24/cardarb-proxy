@@ -1,237 +1,175 @@
-const express = require("express");
-const cors = require("cors");
+// ===============================
+// CONFIG
+// ===============================
+const MIN_ROI = 0.15; // 15% minimum ROI
+const MAX_PRICE = 1000;
+const MIN_PRICE = 10;
 
-const app = express();
-app.use(cors());
+// ===============================
+// MAIN PIPELINE
+// ===============================
+async function findDeals(listings) {
+  const valid = listings.filter(l => isValidAuto(l.title));
 
-const PORT = process.env.PORT || 8080;
-const fetch = global.fetch;
+  const deals = [];
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
+  for (const item of valid) {
+    const grade = detectGrade(item.title);
 
-let cachedToken = null;
-let tokenExpiry = 0;
+    const comps = await getComps(item.title);
 
-// ─────────────────────────────────────
-// TOKEN
-// ─────────────────────────────────────
-async function getToken() {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+    const filteredComps = comps
+      .filter(c => gradeMatches(c.title, grade))
+      .map(c => c.price)
+      .filter(p => p > 0);
 
-  const creds = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+    if (filteredComps.length < 3) continue;
 
-  const res = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${creds}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      scope: "https://api.ebay.com/oauth/api_scope"
-    })
-  });
+    const marketPrice = median(filteredComps);
 
-  const data = await res.json();
-  if (!res.ok) throw new Error("Token failed");
+    if (!marketPrice) continue;
 
-  cachedToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in - 120) * 1000;
+    if (item.price < MIN_PRICE || item.price > MAX_PRICE) continue;
 
-  return cachedToken;
+    const roi = (marketPrice - item.price) / item.price;
+
+    if (roi < MIN_ROI) continue;
+
+    const startOffer = round(marketPrice * 0.65);
+    const maxOffer = round(marketPrice * 0.80);
+    const profit = round(marketPrice - item.price);
+
+    deals.push({
+      title: item.title,
+      price: item.price,
+      marketPrice,
+      roi: round(roi * 100) / 100,
+      url: item.url,
+      offer: {
+        startOffer,
+        maxOffer,
+        profit
+      }
+    });
+  }
+
+  return {
+    count: deals.length,
+    deals: deals.sort((a, b) => b.offer.profit - a.offer.profit)
+  };
 }
 
-// ─────────────────────────────────────
-// STRICT FILTER
-// ─────────────────────────────────────
+// ===============================
+// FILTERS
+// ===============================
 function isValidAuto(title) {
   const t = title.toLowerCase();
+
+  const banned = [
+    "signed",
+    "autographed",
+    "psa/dna",
+    "dna auto",
+    "in person",
+    "ip auto",
+    "custom",
+    "leaf",
+    "paper",
+    "sticker auto"
+  ];
+
+  if (banned.some(b => t.includes(b))) return false;
 
   return (
     t.includes("bowman chrome") &&
     t.includes("1st") &&
-    t.includes("auto") &&
-
-    !t.includes("signed") &&
-    !t.includes("autographed") &&
-    !t.includes("psa/dna") &&
-    !t.includes("in person") &&
-    !t.includes("ip auto") &&
-    !t.includes("paper") &&
-    !t.includes("leaf") &&
-    !t.includes("custom")
+    t.includes("auto")
   );
 }
 
-// ─────────────────────────────────────
-// GRADE DETECTION
-// ─────────────────────────────────────
-function getGrade(title) {
+// ===============================
+// GRADE HANDLING
+// ===============================
+function detectGrade(title) {
   const t = title.toLowerCase();
 
   if (t.includes("psa 10")) return "psa10";
   if (t.includes("psa 9")) return "psa9";
-  if (t.includes("sgc 10")) return "sgc10";
   if (t.includes("bgs 9.5")) return "bgs95";
+  if (t.includes("sgc 10")) return "sgc10";
 
   return "raw";
 }
 
-// ─────────────────────────────────────
-// PLAYER
-// ─────────────────────────────────────
-function getPlayer(title) {
-  return title.split(" ").slice(0, 2).join(" ").toLowerCase();
-}
+function gradeMatches(compTitle, targetGrade) {
+  const t = compTitle.toLowerCase();
 
-// ─────────────────────────────────────
-// COMPS (SMART)
-// ─────────────────────────────────────
-async function getComps(token, title) {
-  const grade = getGrade(title);
-  let query = `${getPlayer(title)} bowman chrome 1st auto`;
-
-  if (grade !== "raw") {
-    query += ` ${grade.replace("psa", "psa ").replace("sgc", "sgc ")}`;
+  if (targetGrade === "raw") {
+    return (
+      !t.includes("psa") &&
+      !t.includes("bgs") &&
+      !t.includes("sgc")
+    );
   }
 
-  const res = await fetch(
-    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=20`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
-      }
-    }
-  );
+  if (targetGrade === "psa10") return t.includes("psa 10");
+  if (targetGrade === "psa9") return t.includes("psa 9");
+  if (targetGrade === "bgs95") return t.includes("bgs 9.5");
+  if (targetGrade === "sgc10") return t.includes("sgc 10");
 
-  const json = await res.json();
-
-  let prices = (json.itemSummaries || [])
-    .filter(i => isValidAuto(i.title))
-    .map(i => parseFloat(i.price?.value || 0))
-    .filter(p => p > 20)
-    .sort((a, b) => a - b);
-
-  if (prices.length < 3) return null;
-
-  const min = prices[0];
-  const max = prices[prices.length - 1];
-
-  // 🔥 REMOVE BAD DATA
-  if (max > min * 2.2) {
-    prices = prices.filter(p => p < min * 1.8);
-  }
-
-  if (prices.length < 3) return null;
-
-  return prices[Math.floor(prices.length / 2)];
+  return false;
 }
 
-// ─────────────────────────────────────
-// SEARCH
-// ─────────────────────────────────────
-async function searchEbay(token, query) {
-  const res = await fetch(
-    `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&limit=25`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-EBAY-C-MARKETPLACE-ID": "EBAY_US"
-      }
-    }
-  );
+// ===============================
+// HELPERS
+// ===============================
+function median(arr) {
+  if (!arr.length) return null;
 
-  const json = await res.json();
-  return json.itemSummaries || [];
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// ─────────────────────────────────────
-// LIQUID PLAYERS
-// ─────────────────────────────────────
-const PLAYERS = [
-  "walker jenkins",
-  "dylan crews",
-  "paul skenes",
-  "jackson holliday",
-  "james wood",
-  "max clark",
-  "colt emerson"
-];
+function round(num) {
+  return Math.round(num * 100) / 100;
+}
 
-// ─────────────────────────────────────
-// ENGINE
-// ─────────────────────────────────────
-async function findDeals(token) {
-  const deals = [];
-  const seen = new Set();
+// ===============================
+// MOCK: REPLACE WITH REAL EBAY SOLD API
+// ===============================
+async function getComps(title) {
+  return [];
+}
 
-  for (const p of PLAYERS) {
-    const items = await searchEbay(token, `${p} bowman chrome 1st auto`);
+// ===============================
+// ITERATIVE SEARCH EXPANSION
+// ===============================
+async function runSearch(searchSets) {
+  let allDeals = [];
 
-    for (const item of items) {
-      if (seen.has(item.itemWebUrl)) continue;
-      seen.add(item.itemWebUrl);
+  for (const listings of searchSets) {
+    const result = await findDeals(listings);
 
-      const title = item.title;
-      const price = parseFloat(item.price?.value || 0);
-
-      if (!isValidAuto(title)) continue;
-      if (price < 25) continue;
-
-      const market = await getComps(token, title);
-      if (!market) continue;
-
-      const profit = market - price;
-      const roi = profit / price;
-
-      if (roi < 0.15 || profit < 20) continue;
-
-      const maxOffer = +(market * 0.85).toFixed(2);
-      const startOffer = +(price * 0.7).toFixed(2);
-
-      deals.push({
-        title,
-        price,
-        marketPrice: market,
-        url: item.itemWebUrl,
-        bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
-        offer: {
-          startOffer,
-          maxOffer,
-          profit: +profit.toFixed(2),
-          roi: +(roi * 100).toFixed(1) + "%"
-        }
-      });
+    if (result.count > 0) {
+      allDeals = allDeals.concat(result.deals);
     }
   }
 
-  return deals;
-}
-
-// ─────────────────────────────────────
-// ROUTES
-// ─────────────────────────────────────
-app.get("/scan", async (req, res) => {
-  try {
-    const token = await getToken();
-    const deals = await findDeals(token);
-
-    res.json({
-      count: deals.length,
-      deals
-    });
-
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  // Deduplicate by title
+  const unique = {};
+  for (const d of allDeals) {
+    unique[d.title] = d;
   }
-});
 
-app.get("/ping", (req, res) => {
-  res.json({ ok: true });
-});
+  const finalDeals = Object.values(unique)
+    .sort((a, b) => b.offer.profit - a.offer.profit);
 
-app.listen(PORT, () => {
-  console.log("PRO ENGINE LIVE");
-});
+  return {
+    count: finalDeals.length,
+    deals: finalDeals
+  };
+}
