@@ -158,4 +158,78 @@ async function searchEbay(token, query) {
 // ─────────────────────────────────────
 // CORE ENGINE
 // ─────────────────────────────────────
-async function findDeals(token, queries, targetCount = 10)
+async function findDeals(token, queries, targetCount = 10) {
+  const deals = [];
+
+  for (const q of queries) {
+    const items = await searchEbay(token, q);
+
+    for (const item of items) {
+      const price = parseFloat(item.price?.value || 0);
+
+      if (price < 10) continue;
+      if (isJunk(item.title)) continue;
+
+      const comp = await getComps(token, item.title);
+      if (!comp.price) continue;
+
+      // 🔥 15% ROI TARGET
+      const maxBuy = comp.price * 0.85;
+
+      if (price <= maxBuy) {
+        deals.push({
+          title: item.title,
+          price,
+          marketPrice: comp.price,
+          url: item.itemWebUrl,
+          bestOffer: item.buyingOptions?.includes("BEST_OFFER") || false,
+          offer: {
+            startOffer: +(maxBuy * 0.8).toFixed(2),
+            maxOffer: +maxBuy.toFixed(2),
+            profit: +(comp.price - price).toFixed(2)
+          }
+        });
+      }
+
+      if (deals.length >= targetCount) return deals;
+    }
+  }
+
+  return deals;
+}
+
+// ─────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────
+app.get("/scan", async (req, res) => {
+  try {
+    const token = await getToken();
+
+    const queries = [
+      "bowman chrome auto",
+      "bowman 1st auto",
+      "bowman chrome prospect auto",
+      "bowman draft auto",
+      "bowman chrome refractor auto"
+    ];
+
+    const deals = await findDeals(token, queries, 12);
+
+    res.json({
+      count: deals.length,
+      deals
+    });
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/ping", (req, res) => {
+  res.json({ ok: true });
+});
+
+app.listen(PORT, () => {
+  console.log("EXPANDED ENGINE LIVE");
+});
