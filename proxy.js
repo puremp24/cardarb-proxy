@@ -71,7 +71,53 @@ function strictFilter(items, keywords, maxPrice) {
   });
 }
 
-// ── 130point sold comps ───────────────────────────────────────────────────────
+// ── Claude vision: compare listing image to comp images ───────────────────────
+async function imagesMatch(listingImageUrl, compImageUrl) {
+  try {
+    // Fetch both images as base64
+    const [r1, r2] = await Promise.all([
+      fetch(listingImageUrl),
+      fetch(compImageUrl),
+    ]);
+    if (!r1.ok || !r2.ok) return null;
+
+    const [b1, b2] = await Promise.all([
+      r1.arrayBuffer().then(b => Buffer.from(b).toString("base64")),
+      r2.arrayBuffer().then(b => Buffer.from(b).toString("base64")),
+    ]);
+
+    const mt1 = r1.headers.get("content-type") || "image/jpeg";
+    const mt2 = r2.headers.get("content-type") || "image/jpeg";
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "x-api-key":     process.env.ANTHROPIC_API_KEY || "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 64,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mt1, data: b1 } },
+            { type: "image", source: { type: "base64", media_type: mt2, data: b2 } },
+            { type: "text",  text: "Are these two sports cards the same card (same year, same set, same player, same card number, same grade)? Reply with only YES or NO." },
+          ],
+        }],
+      }),
+    });
+
+    const data = await resp.json();
+    const answer = (data.content?.[0]?.text || "").trim().toUpperCase();
+    return answer.startsWith("YES");
+  } catch(e) {
+    console.log("Vision compare failed:", e.message);
+    return null; // null = unknown, don't filter
+  }
+}
 async function getSoldComps(keywords) {
   try {
     const url = "https://www.130point.com/sales/?" + new URLSearchParams({
@@ -126,19 +172,32 @@ app.get("/scan", async (req, res) => {
 
     // Get comp items with images for visual verification
     const compRawFull = await browse(compQ, null, 10);
-    compWithImages = strictFilter(compRawFull, compQ, null).slice(0,4).map(i => ({
-      title: i.title,
-      price: i.price,
-      url:   i.url,
-      image: i.image,
-    }));
+    const compWithImages = strictFilter(compRawFull, compQ, null)
+      .filter(i => i.image)
+      .slice(0, 4)
+      .map(i => ({ title: i.title, price: i.price, url: i.url, image: i.image }));
 
-    // Filter listings: reject any priced more than 80% below market
-    const validListings = marketPrice
-      ? listings.filter(l => l.price >= marketPrice * 0.20)
-      : listings;
+    // Use first comp image as the "reference" card image
+    const refCompImage = compWithImages[0]?.image || null;
 
-    res.json({ listings: validListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compWithImages, compSource });
+    // Vision-validate each listing against the reference comp image
+    const validatedListings = [];
+    for (const lst of validListings) {
+      if (!lst.image || !refCompImage) {
+        lst.imageMatch = null; // unknown
+        validatedListings.push(lst);
+        continue;
+      }
+      const match = await imagesMatch(lst.image, refCompImage);
+      if (match !== false) { // include if match or unknown
+        lst.imageMatch = match;
+        validatedListings.push(lst);
+      } else {
+        console.log(`Image mismatch filtered: ${lst.title.slice(0,40)}`);
+      }
+    }
+
+    res.json({ listings: validatedListings, marketPrice, compCount: compItems.length, compSample: compItems.slice(0,8), compWithImages, compSource });
   } catch(e) {
     console.error("/scan:", e.message);
     res.status(500).json({ error: e.message });

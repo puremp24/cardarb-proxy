@@ -297,8 +297,11 @@ function App() {
                 const profit=card.net-card.listing.price;
                 return (
                   <div key={card.id} style={{background:hot?(ib?"linear-gradient(135deg,rgba(28,0,56,.92),rgba(16,0,32,.96))":"linear-gradient(135deg,rgba(0,34,20,.92),rgba(0,18,11,.96))"):"rgba(255,255,255,.025)",border:`1px solid ${hot?(ib?"#a855f755":"#00ff9d55"):"#1a2a3a"}`,borderLeft:`3px solid ${ac}`,borderRadius:6,padding:"12px 14px",position:"relative",boxShadow:hot?`0 0 18px ${ib?"rgba(168,85,247,.1)":"rgba(0,255,157,.08)"}`:"none"}}>
-                    <div style={{position:"absolute",top:9,left:14}}>
+                    <div style={{position:"absolute",top:9,left:14,display:"flex",gap:4}}>
                       <span style={{fontSize:8,color:"#00ff9d",background:"rgba(0,255,157,.08)",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>LIVE</span>
+                      {card.listing.imageMatch===true&&<span style={{fontSize:8,color:"#00ff9d",background:"rgba(0,255,157,.08)",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>✅ IMAGE MATCH</span>}
+                      {card.listing.imageMatch===false&&<span style={{fontSize:8,color:"#ff6a7a",background:"rgba(255,100,120,.08)",border:"1px solid #ff6a7a33",padding:"1px 5px",borderRadius:2}}>❌ MISMATCH</span>}
+                      {card.listing.imageMatch===null&&<span style={{fontSize:8,color:"#f5c842",background:"rgba(245,200,66,.08)",border:"1px solid #f5c84233",padding:"1px 5px",borderRadius:2}}>⚠ UNVERIFIED</span>}
                     </div>
                     {hot&&<div style={{position:"absolute",top:9,right:10,background:ib?"#a855f7":"#00ff9d",color:ib?"#fff":"#001a0d",fontSize:8,fontWeight:"bold",padding:"2px 7px",borderRadius:2,letterSpacing:2}}>{ib?"🔮 PROSPECT BUY":"🔥 BUY SIGNAL"}</div>}
                     <div style={{marginTop:20}}>
