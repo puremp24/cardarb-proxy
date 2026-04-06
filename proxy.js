@@ -1,7 +1,7 @@
 // ===============================
 // CONFIG
 // ===============================
-const MIN_ROI = 0.15; // 15%
+let MIN_ROI = 0.15;
 const MAX_PRICE = 1000;
 const MIN_PRICE = 10;
 
@@ -58,41 +58,20 @@ async function findDeals(listings) {
 }
 
 // ===============================
-// STRICT AUTO FILTER
+// AUTO FILTER (RELAXED - USER WILL MANUALLY VERIFY)
 // ===============================
 function isValidAuto(title) {
   const t = title.toLowerCase();
 
-  // HARD BLOCK (non-pack autos)
-  const banned = [
-    "signed",
-    "autographed",
-    "psa/dna",
-    "dna auto",
-    "in person",
-    "ip auto",
-    "custom",
-    "leaf",
-    "paper",
-    "sticker auto"
-  ];
-
-  if (banned.some(b => t.includes(b))) return false;
-
-  // MUST BE TRUE BOWMAN CHROME 1ST AUTO
-  const validPatterns = [
-    "1st bowman chrome auto",
-    "bowman chrome 1st auto",
-    "1st bowman auto"
-  ];
-
-  if (!validPatterns.some(p => t.includes(p))) return false;
-
-  return true;
+  return (
+    t.includes("bowman chrome") &&
+    t.includes("1st") &&
+    t.includes("auto")
+  );
 }
 
 // ===============================
-// GRADE DETECTION
+// GRADE DETECTION (CARD ONLY)
 // ===============================
 function detectGrade(title) {
   const t = title.toLowerCase();
@@ -106,7 +85,7 @@ function detectGrade(title) {
 }
 
 // ===============================
-// STRICT GRADE MATCHING
+// GRADE MATCHING (NO AUTO GRADE FILTERING)
 // ===============================
 function gradeMatches(compTitle, targetGrade) {
   const t = compTitle.toLowerCase();
@@ -119,21 +98,10 @@ function gradeMatches(compTitle, targetGrade) {
     );
   }
 
-  if (targetGrade === "psa10") {
-    return t.includes("psa 10") && !t.includes("auto 10");
-  }
-
-  if (targetGrade === "psa9") {
-    return t.includes("psa 9");
-  }
-
-  if (targetGrade === "bgs95") {
-    return t.includes("bgs 9.5");
-  }
-
-  if (targetGrade === "sgc10") {
-    return t.includes("sgc 10");
-  }
+  if (targetGrade === "psa10") return t.includes("psa 10");
+  if (targetGrade === "psa9") return t.includes("psa 9");
+  if (targetGrade === "bgs95") return t.includes("bgs 9.5");
+  if (targetGrade === "sgc10") return t.includes("sgc 10");
 
   return false;
 }
@@ -164,7 +132,7 @@ async function getComps(title) {
 }
 
 // ===============================
-// ITERATIVE SEARCH (EXPANDS UNTIL DEALS FOUND)
+// ITERATIVE SEARCH ENGINE
 // ===============================
 async function runSearch(searchSets) {
   let allDeals = [];
@@ -177,9 +145,9 @@ async function runSearch(searchSets) {
     }
   }
 
-  // If still no deals, relax ROI slightly and retry
-  if (allDeals.length === 0 && MIN_ROI > 0.15) {
-    console.log("No deals found. Consider lowering ROI further.");
+  // If low deal count, allow broader results (still 15% floor)
+  if (allDeals.length < 5) {
+    MIN_ROI = 0.15;
   }
 
   // Deduplicate
