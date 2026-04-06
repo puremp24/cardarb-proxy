@@ -43,19 +43,21 @@ async function getToken() {
 }
 
 // ─────────────────────────────────────
-// STRICT FILTER 🔥
+// STRICT FILTER (FINAL)
 // ─────────────────────────────────────
 function isValidAuto(title) {
   const t = title.toLowerCase();
 
   return (
     t.includes("bowman chrome") &&
-    t.includes("auto") &&
     t.includes("1st") &&
+    (t.includes("auto") || t.includes("autograph")) &&
 
     !t.includes("signed") &&
-    !t.includes("ip auto") &&
+    !t.includes("autographed") &&
+    !t.includes("psa/dna") &&
     !t.includes("in person") &&
+    !t.includes("ip auto") &&
     !t.includes("paper") &&
     !t.includes("leaf") &&
     !t.includes("custom") &&
@@ -91,7 +93,7 @@ async function getComps(token, title) {
   let prices = (json.itemSummaries || [])
     .filter(i => isValidAuto(i.title))
     .map(i => parseFloat(i.price?.value || 0))
-    .filter(p => p > 10)
+    .filter(p => p > 15)
     .sort((a, b) => a - b);
 
   if (prices.length < 3) return null;
@@ -118,7 +120,7 @@ async function searchEbay(token, query) {
 }
 
 // ─────────────────────────────────────
-// PLAYERS (LIQUID)
+// LIQUID PLAYERS
 // ─────────────────────────────────────
 const PLAYERS = [
   "walker jenkins",
@@ -127,8 +129,7 @@ const PLAYERS = [
   "jackson holliday",
   "james wood",
   "max clark",
-  "colt emerson",
-  "cam collier"
+  "colt emerson"
 ];
 
 // ─────────────────────────────────────
@@ -149,14 +150,14 @@ async function findDeals(token) {
       const price = parseFloat(item.price?.value || 0);
 
       if (!isValidAuto(title)) continue;
-      if (price < 15) continue;
+      if (price < 20) continue;
 
       const market = await getComps(token, title);
       if (!market) continue;
 
       const roi = (market - price) / price;
 
-      if (roi < 0.15 || (market - price) < 10) continue;
+      if (roi < 0.15 || (market - price) < 15) continue;
 
       const maxOffer = +(market * 0.85).toFixed(2);
       const startOffer = +(price * 0.7).toFixed(2);
@@ -170,7 +171,8 @@ async function findDeals(token) {
         offer: {
           startOffer,
           maxOffer,
-          profit: +(market - price).toFixed(2)
+          profit: +(market - price).toFixed(2),
+          roi: +(roi * 100).toFixed(1) + "%"
         }
       });
     }
@@ -202,5 +204,5 @@ app.get("/ping", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("CLEAN ENGINE LIVE");
+  console.log("FINAL ENGINE LIVE");
 });
