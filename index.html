@@ -139,7 +139,8 @@ const TIER2 = [
 ];
 
 // Combined — Tier1 always runs, Tier2 only if no ROI found
-const TARGETS = [...TIER1];
+// Combined for reference
+const ALL_TARGETS = [...TIER1, ...TIER2];
 
 const f$   = n  => `$${Number(n).toFixed(2)}`;
 const fR   = r  => `${r>=0?"+":""}${(r*100).toFixed(1)}%`;
@@ -676,7 +677,7 @@ function App() {
                 ["Fees","15% of market price"],
                 ["ROI","(Net − Buy) / Buy"],
                 ["Signal","≥10% ROI"],
-                ["Targets",TARGETS.length+" card searches"],
+                ["Targets",`${TIER1.length} Tier1 + ${TIER2.length} Tier2`],
               ].map(([k,v])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",gap:6,fontSize:9,marginBottom:4,borderBottom:"1px solid #0a1a24",paddingBottom:3}}>
                   <span style={{color:"#4a7a9b"}}>{k}</span><span style={{color:"#8aacbc",textAlign:"right"}}>{v}</span>
@@ -686,7 +687,7 @@ function App() {
 
             <div style={{background:"rgba(20,0,40,.5)",border:"1px solid #4a1a7a",borderRadius:6,padding:11}}>
               <div style={{fontSize:8,color:"#a855f7",letterSpacing:2,marginBottom:7}}>🔮 BOWMAN PROSPECTS</div>
-              {TARGETS.filter(t=>t.sport==="bowman").map(t=>(
+              {[...TIER1,...TIER2].filter(t=>t.sport==="bowman").map(t=>(
                 <div key={t.player} style={{marginBottom:7}}>
                   <div style={{fontSize:9,color:"#c4b5fd",fontWeight:"bold"}}>{t.player} #{t.prospectRank}</div>
                   <div style={{fontSize:8,color:"#7a6a8a",lineHeight:1.4}}>{t.hypeReason}</div>
