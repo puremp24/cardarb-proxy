@@ -257,25 +257,25 @@ function App() {
           const mkt = aMarket || marketPrice;
           if (auctionListings?.length) {
             addLog(`  ↳ ${auctionListings.length} auctions ending <24hrs`,"info");
-            for (const lst of auctionListings) {
-              if (!lst.currentBid || !mkt) continue;
-              const buyShipping = lst.freeShipping ? 0 : (lst.shippingCost || 5);
-              const {net, profit, roi:r, totalFees, sellShipping, totalCost} = calcROI(mkt, lst.currentBid, buyShipping);
-              if (r >= 0.20) { // 20% ROI minimum for auctions
-                const deal = {
-                  id: lst.itemId+"-auction-"+i, sport:t.sport, player:t.player,
-                  listing:lst, marketPrice:mkt, net, profit, roi:r,
-                  totalFees, sellShipping, buyShipping, totalCost,
+            for (const alst of auctionListings) {
+              if (!alst.currentBid || !mkt) continue;
+              const aBuyShip = alst.freeShipping ? 0 : (alst.shippingCost || 5);
+              const aCalc = calcROI(mkt, alst.currentBid, aBuyShip);
+              if (aCalc.roi >= 0.20) {
+                const aDeal = {
+                  id: alst.itemId+"-auction-"+i, sport:t.sport, player:t.player,
+                  listing:alst, marketPrice:mkt, net:aCalc.net, profit:aCalc.profit, roi:aCalc.roi,
+                  totalFees:aCalc.totalFees, sellShipping:aCalc.sellShipping, buyShipping:aBuyShip, totalCost:aCalc.totalCost,
                   compSample: compSample||[], compCount, compWithImages: compWithImages||[],
                   prospectRank:t.prospectRank||0, hypeReason:t.hypeReason||"",
                   isAuction: true,
-                  hoursLeft: lst.hoursLeft,
-                  endTime: lst.endTime,
+                  hoursLeft: alst.hoursLeft,
+                  endTime: alst.endTime,
                 };
-                allAuctions.push(deal);
+                allAuctions.push(aDeal);
                 setAuctions([...allAuctions].sort((a,b)=>a.hoursLeft-b.hoursLeft));
-                addLog(`  🔨 AUCTION: ${lst.title.slice(0,34)} | ${f$(lst.currentBid)} bid → ${fR(r)} ROI | ${lst.hoursLeft}h left`,"alert");
-                pushNotif({...deal, isAuctionAlert:true});
+                addLog(`  🔨 AUCTION: ${alst.title.slice(0,34)} | ${f$(alst.currentBid)} bid → ${fR(aCalc.roi)} ROI | ${alst.hoursLeft}h left`,"alert");
+                pushNotif({...aDeal, isAuctionAlert:true});
               }
             }
           }
