@@ -1,21 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CARDARB</title>
-</head>
-<body style="background:#080c10;color:white;font-family:Arial">
+</head><body style="background:#080c10;color:white;font-family:Arial"><div id="root"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script><script type="text/babel">
 
-<div id="root"></div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
-<script type="text/babel">
-
-const PROXY = "https://cardarb-proxy-production.up.railway.app";
+// 🔥 CHANGE THIS TO YOUR BACKEND
+const API_URL = "https://cardarb-proxy-production.up.railway.app/deals";
 
 const EBAY_FVF_RATE = 0.1325;
 const EBAY_ORDER_FEE = 0.30;
@@ -28,60 +19,125 @@ function calcROI(salePrice, buyCost) {
   return profit / buyCost;
 }
 
-// 🔥 NEW OFFER ENGINE
-function getMaxBuyPriceForROI(marketPrice, targetROI) {
-  const fees = marketPrice * EBAY_FVF_RATE + EBAY_ORDER_FEE;
-  const shipping = marketPrice > 50 ? 10 : 5;
-  const net = marketPrice - fees - shipping;
-  return net / (1 + targetROI);
-}
-
-function getOfferStrategy(marketPrice, targetROI) {
-  const maxOffer = getMaxBuyPriceForROI(marketPrice, targetROI);
-  const startOffer = maxOffer * 0.8;
-  return { maxOffer, startOffer };
-}
-
 function App(){
   const [data,setData] = React.useState([]);
+  const [loading,setLoading] = React.useState(false);
 
-  async function run(){
-    const r = await fetch(PROXY + "/scan?binQ=Shohei%20Ohtani%202018%20Topps%20Chrome%20PSA%2010");
-    const j = await r.json();
+  async function loadDeals(){
+    try{
+      setLoading(true);
 
-    const deals = j.listings.map(l=>{
-      const roi = calcROI(j.marketPrice, l.price);
-      const offer = getOfferStrategy(j.marketPrice, 0.10);
-      return {...l, roi, ...offer};
-    });
+      const r = await fetch(API_URL + "?t=" + Date.now());
+      const j = await r.json();
 
-    setData(deals);
+      const deals = j.deals.map(d=>{
+        const roi = calcROI(d.marketPrice, d.price);
+
+        return {
+          ...d,
+          roi
+        };
+      });
+
+      // Sort best deals first
+      deals.sort((a,b)=> b.offer.profit - a.offer.profit);
+
+      setData(deals);
+      setLoading(false);
+
+    }catch(e){
+      console.error(e);
+      setLoading(false);
+    }
   }
+
+  // 🔥 AUTO LOAD ON OPEN
+  React.useEffect(()=>{
+    loadDeals();
+  },[]);
+
+  // 🔥 AUTO REFRESH EVERY 30s
+  React.useEffect(()=>{
+    const i = setInterval(loadDeals, 30000);
+    return ()=> clearInterval(i);
+  },[]);
 
   return (
     <div style={{padding:20}}>
-      <button onClick={run}>SCAN</button>
 
-      {data.map(d=>(
-        <div key={d.itemId} style={{border:"1px solid #333",marginTop:10,padding:10}}>
-          <div>{d.title}</div>
-          <div>Price: ${d.price}</div>
-          <div>ROI: {(d.roi*100).toFixed(1)}%</div>
-          {d.bestOffer && (
-            <div>
-              <div>Start Offer: ${d.startOffer.toFixed(2)}</div>
-              <div>Max Offer: ${d.maxOffer.toFixed(2)}</div>
-            </div>
-          )}
-          <a href={d.url} target="_blank">View</a>
+      <div style={{display:"flex", gap:10, marginBottom:10}}>
+        <button onClick={loadDeals}>🔄 Refresh</button>
+        <div>{loading ? "Loading..." : `${data.length} deals`}</div>
+      </div>
+
+      {data.map((d,i)=>(
+        <div key={i} style={{
+          border:"1px solid #333",
+          marginTop:10,
+          padding:12,
+          borderRadius:10,
+          background:"#111"
+        }}>
+
+          <div style={{fontWeight:"bold", marginBottom:6}}>
+            {d.title}
+          </div>
+
+          <div>💰 Price: ${d.price}</div>
+          <div>📊 Market: ${d.marketPrice}</div>
+
+          <div style={{color:"#22c55e", fontWeight:"bold"}}>
+            Profit: ${d.offer.profit}
+          </div>
+
+          <div style={{color:"#38bdf8"}}>
+            ROI: {(d.roi * 100).toFixed(1)}%
+          </div>
+
+          <div style={{marginTop:6}}>
+            🎯 Start: ${d.offer.startOffer.toFixed(2)}
+          </div>
+
+          <div>
+            🚫 Max: ${d.offer.maxOffer.toFixed(2)}
+          </div>
+
+          <div style={{display:"flex", gap:8, marginTop:10}}>
+            <a href={d.url} target="_blank"
+              style={{
+                flex:1,
+                background:"#3b82f6",
+                padding:8,
+                borderRadius:8,
+                textAlign:"center",
+                color:"white",
+                textDecoration:"none"
+              }}>
+              View
+            </a>
+
+            <a href={d.url} target="_blank"
+              style={{
+                flex:1,
+                background:"#16a34a",
+                padding:8,
+                borderRadius:8,
+                textAlign:"center",
+                color:"white",
+                textDecoration:"none"
+              }}>
+              Offer ${d.offer.startOffer.toFixed(0)}
+            </a>
+          </div>
+
         </div>
       ))}
+
     </div>
   )
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
-</script>
-</body>
+</script></body>
 </html>
