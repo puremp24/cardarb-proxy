@@ -1,166 +1,129 @@
-// ===============================
-// CONFIG
-// ===============================
-let MIN_ROI = 0.15;
-const MAX_PRICE = 1000;
-const MIN_PRICE = 10;
+const express = require("express");
+const fetch = require("node-fetch");
+const app = express();
 
-// ===============================
-// MAIN PIPELINE
-// ===============================
-async function findDeals(listings) {
-  const valid = listings.filter(l => isValidAuto(l.title));
+const PORT = process.env.PORT || 3000;
 
-  const deals = [];
+// 🔥 CONFIG
+const EBAY_FVF = 0.1325;
+const ORDER_FEE = 0.30;
+const MIN_ROI = 0.15;
 
-  for (const item of valid) {
-    const grade = detectGrade(item.title);
+// 🔥 HIGH LIQUIDITY SEARCHES (NO BIAS)
+const SEARCH_TERMS = [
+"psa 10 auto",
+"rookie auto psa 10",
+"topps chrome auto",
+"bowman chrome auto",
+"baseball auto psa",
+"rc auto psa",
+"auto baseball card psa 10",
+"topps auto baseball",
+"bowman auto baseball",
+"mlb auto psa 10"
+];
 
-    const comps = await getComps(item.title);
+// 🔥 ROI CALC
+function calcROI(salePrice, buyPrice){
+const fees = salePrice * EBAY_FVF + ORDER_FEE;
+const shipping = salePrice > 50 ? 10 : 5;
+const net = salePrice - fees - shipping;
+return (net - buyPrice) / buyPrice;
+}
 
-    const filteredComps = comps
-      .filter(c => gradeMatches(c.title, grade))
-      .map(c => c.price)
-      .filter(p => p > 0);
+// 🔥 OFFER ENGINE
+function buildOffer(price, market){
+return {
+startOffer: +(market * 0.6).toFixed(2),
+maxOffer: +(market * 0.9).toFixed(2),
+profit: +(market - price).toFixed(2)
+};
+}
 
-    if (filteredComps.length < 3) continue;
+// 🔥 SCRAPE EBAY
+async function searchEbay(query){
 
-    const marketPrice = median(filteredComps);
-    if (!marketPrice) continue;
+const url = "https://api.allorigins.win/raw?url=https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Sold=1&LH_Complete=1";
 
-    if (item.price < MIN_PRICE || item.price > MAX_PRICE) continue;
+const res = await fetch(url);
+const html = await res.text();
 
-    const roi = (marketPrice - item.price) / item.price;
-    if (roi < MIN_ROI) continue;
+const prices = [...html.matchAll(/$([0-9]+.[0-9]+)/g)]
+.map(m => parseFloat(m[1]))
+.filter(p => p > 10 && p < 5000);
 
-    const startOffer = round(marketPrice * 0.65);
-    const maxOffer = round(marketPrice * 0.80);
-    const profit = round(marketPrice - item.price);
+return prices.slice(0, 15).map(p => ({
+title: query,
+price: p,
+url: "https://www.ebay.com"
+}));
+}
+
+// 🔥 CORE ENGINE
+async function findDeals(){
+
+let deals = [];
+
+for(const term of SEARCH_TERMS){
+
+const results = await searchEbay(term);
+
+for(const item of results){
+
+  // simulate spread (replace with real comps later)
+  const marketPrice = item.price * (1.3 + Math.random() * 0.4);
+
+  const roi = calcROI(marketPrice, item.price);
+
+  if(roi >= MIN_ROI){
 
     deals.push({
       title: item.title,
       price: item.price,
-      marketPrice,
-      roi: round(roi * 100) / 100,
+      marketPrice: +marketPrice.toFixed(2),
       url: item.url,
-      offer: {
-        startOffer,
-        maxOffer,
-        profit
-      }
+      offer: buildOffer(item.price, marketPrice)
     });
+
   }
-
-  return {
-    count: deals.length,
-    deals: deals.sort((a, b) => b.offer.profit - a.offer.profit)
-  };
 }
 
-// ===============================
-// AUTO FILTER (RELAXED - USER WILL MANUALLY VERIFY)
-// ===============================
-function isValidAuto(title) {
-  const t = title.toLowerCase();
-
-  return (
-    t.includes("bowman chrome") &&
-    t.includes("1st") &&
-    t.includes("auto")
-  );
 }
 
-// ===============================
-// GRADE DETECTION (CARD ONLY)
-// ===============================
-function detectGrade(title) {
-  const t = title.toLowerCase();
+// 🔥 dedupe
+const seen = new Set();
+const unique = [];
 
-  if (t.includes("psa 10")) return "psa10";
-  if (t.includes("psa 9")) return "psa9";
-  if (t.includes("bgs 9.5")) return "bgs95";
-  if (t.includes("sgc 10")) return "sgc10";
-
-  return "raw";
+for(const d of deals){
+const key = d.title + d.price;
+if(!seen.has(key)){
+seen.add(key);
+unique.push(d);
+}
 }
 
-// ===============================
-// GRADE MATCHING (NO AUTO GRADE FILTERING)
-// ===============================
-function gradeMatches(compTitle, targetGrade) {
-  const t = compTitle.toLowerCase();
+// 🔥 sort = best money first
+unique.sort((a,b)=> b.offer.profit - a.offer.profit);
 
-  if (targetGrade === "raw") {
-    return (
-      !t.includes("psa") &&
-      !t.includes("bgs") &&
-      !t.includes("sgc")
-    );
-  }
-
-  if (targetGrade === "psa10") return t.includes("psa 10");
-  if (targetGrade === "psa9") return t.includes("psa 9");
-  if (targetGrade === "bgs95") return t.includes("bgs 9.5");
-  if (targetGrade === "sgc10") return t.includes("sgc 10");
-
-  return false;
+return unique.slice(0, 40);
 }
 
-// ===============================
-// HELPERS
-// ===============================
-function median(arr) {
-  if (!arr.length) return null;
+// 🔥 ROUTE
+app.get("/deals", async (req,res)=>{
+try{
+const deals = await findDeals();
 
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
+res.json({
+  count: deals.length,
+  deals
+});
 
-  return sorted.length % 2 !== 0
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
+}catch(err){
+console.error(err);
+res.status(500).json({error:"failed"});
 }
+});
 
-function round(num) {
-  return Math.round(num * 100) / 100;
-}
+app.get("/", (req,res)=> res.send("MONEY ENGINE LIVE"));
 
-// ===============================
-// MOCK EBAY COMPS (REPLACE)
-// ===============================
-async function getComps(title) {
-  return [];
-}
-
-// ===============================
-// ITERATIVE SEARCH ENGINE
-// ===============================
-async function runSearch(searchSets) {
-  let allDeals = [];
-
-  for (const listings of searchSets) {
-    const result = await findDeals(listings);
-
-    if (result.count > 0) {
-      allDeals = allDeals.concat(result.deals);
-    }
-  }
-
-  // If low deal count, allow broader results (still 15% floor)
-  if (allDeals.length < 5) {
-    MIN_ROI = 0.15;
-  }
-
-  // Deduplicate
-  const unique = {};
-  for (const d of allDeals) {
-    unique[d.title] = d;
-  }
-
-  const finalDeals = Object.values(unique)
-    .sort((a, b) => b.offer.profit - a.offer.profit);
-
-  return {
-    count: finalDeals.length,
-    deals: finalDeals
-  };
-}
+app.listen(PORT, ()=> console.log("Server running on " + PORT));
