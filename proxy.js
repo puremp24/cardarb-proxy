@@ -196,7 +196,7 @@ async function searchAuctions(q, maxPrice) {
 // ── Strict title filter ───────────────────────────────────────────────────────
 function strictFilter(items, keywords, maxPrice) {
   const stop    = new Set(["the","and","for","gem","mint","qty","lot","pack","break","card","cards","new","other","1st","2nd","3rd","auto","psa","bgs","sgc","10","graded"]);
-  const badWords = ["generation","refractor","insert","parallel","sapphire","aqua","pink","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice","emergent","freshman","phenoms","choice","stained","glass","flux","illusions","noir","flawless","gold","silver","orange","purple","green","red","blue","gold","numbered","1/1"];
+  const badWords = ["generation","refractor","insert","parallel","sapphire","aqua","pink","wave","disco","hyper","laser","mojo","speckle","shimmer","cracked","ice","emergent","freshman","phenoms","choice","stained","glass","flux","illusions","noir","flawless","gold","silver","orange","purple","green","red","blue","numbered","1/1","instant","optic","donruss","select","mosaic","chronicles","contenders","absolute","plates","patches","encased"];
   const searchHasBad = badWords.filter(w => keywords.toLowerCase().includes(w));
 
   // Extract meaningful terms — player name words and set name, skip year/numbers
