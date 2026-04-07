@@ -529,9 +529,9 @@ function App() {
                             <div style={{fontSize:8,color:"#818cf8",letterSpacing:2,marginBottom:8}}>OFFER LADDER</div>
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
                               {[
-                                {label:"AGGRESSIVE\n(start here)", offer:card.lowestOffer, roi:card.roiAtLowest, color:"#34d399", desc:"~40% below ask"},
-                                {label:"TARGET\n(sweet spot)",    offer:card.targetOffer,  roi:card.roiAtTarget, color:"#818cf8", desc:"20% ROI if accepted"},
-                                {label:"MAX OFFER\n(10% ROI)",    offer:card.maxOffer,     roi:card.roiAtMax,    color:"#f59e0b", desc:"walk away above this"},
+                                {label:"AGGRESSIVE (start here)", offer:card.lowestOffer, roi:card.roiAtLowest, color:"#34d399", desc:"~40% below ask"},
+                                {label:"TARGET (sweet spot)",     offer:card.targetOffer,  roi:card.roiAtTarget, color:"#818cf8", desc:"20% ROI if accepted"},
+                                {label:"MAX OFFER (10% ROI)",     offer:card.maxOffer,     roi:card.roiAtMax,    color:"#f59e0b", desc:"walk away above this"},
                               ].map(o=>(
                                 <div key={o.label} style={{background:"rgba(0,0,0,.3)",borderRadius:4,padding:"8px 6px",textAlign:"center",border:`1px solid ${o.color}33`}}>
                                   <div style={{fontSize:7,color:o.color,marginBottom:4,whiteSpace:"pre-line",lineHeight:1.3}}>{o.label}</div>
