@@ -7,21 +7,119 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#080c10;font-family:'Courier New',monospace;color:#c8d8e8;min-height:100vh}
+.grid-bg{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,255,180,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.03) 1px,transparent 1px);background-size:40px 40px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:#1a3a4a;border-radius:2px}
+#root{max-width:1200px;margin:0 auto;padding:18px 14px;position:relative;z-index:1}
+.header{margin-bottom:20px;border-bottom:1px solid #1a2a3a;padding-bottom:16px}
+.header-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.logo{font-size:clamp(26px,6vw,42px);font-weight:900;color:#fff;letter-spacing:-1px}
+.logo span{color:#00ff9d}
+.subtitle{font-size:10px;color:#4a7a9b;margin-top:3px}
+.tagline{font-size:9px;letter-spacing:4px;color:#00ff9d;margin-bottom:4px}
+.btn-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.btn{padding:7px 11px;border-radius:4px;cursor:pointer;font-size:10px;font-family:'Courier New',monospace;border:1px solid #2a4a5a;background:transparent;color:#4a7a9b}
+.btn:hover{opacity:.85}
+.btn-scan{background:linear-gradient(135deg,#00b87d,#008a5a);border:none;color:#fff;padding:9px 18px;font-size:11px;font-weight:bold;letter-spacing:2px;box-shadow:0 0 18px rgba(0,200,125,.4)}
+.btn-scan:disabled{background:rgba(0,200,255,.08);box-shadow:none;opacity:.6;cursor:not-allowed}
+.btn-stop{background:rgba(255,80,80,.15);border-color:#ff5050;color:#ff7070}
+.btn-auto-on{background:rgba(0,255,157,.15);border-color:#00ff9d;color:#00ff9d}
+.status{font-size:9px;padding:4px 8px;border-radius:3px}
+.status-live{background:rgba(0,255,157,.1);border:1px solid #00ff9d;color:#00ff9d}
+.status-off{background:rgba(255,80,80,.1);border:1px solid #ff5050;color:#ff7070}
+.status-check{background:rgba(255,255,255,.05);border:1px solid #2a3a4a;color:#4a7a9b}
+.progress-bar{margin-top:12px}
+.progress-info{display:flex;justify-content:space-between;font-size:9px;color:#4a7a9b;margin-bottom:4px}
+.progress-track{height:3px;background:#0a1a24;border-radius:2px}
+.progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#00b87d,#00ff9d);box-shadow:0 0 8px rgba(0,255,157,.6);transition:width .5s}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:16px}
+.stat{background:rgba(255,255,255,.03);border:1px solid #1a2a3a;border-radius:6px;padding:8px 10px}
+.stat-label{font-size:8px;color:#4a7a9b;letter-spacing:1px;margin-bottom:2px}
+.stat-val{font-size:15px;font-weight:bold}
+.main-grid{display:grid;grid-template-columns:1fr 240px;gap:14px;align-items:start}
+.section-title{font-size:10px;letter-spacing:2px;margin-bottom:8px}
+.card{border-radius:6px;padding:12px 14px;margin-bottom:8px}
+.card-bin{background:rgba(255,255,255,.025);border:1px solid #1a2a3a;border-left:3px solid #f5c842}
+.card-bin-hot{background:linear-gradient(135deg,rgba(0,34,20,.92),rgba(0,18,11,.96));border:1px solid #00ff9d55;border-left:3px solid #00ff9d;box-shadow:0 0 18px rgba(0,255,157,.08)}
+.card-bin-bow{background:linear-gradient(135deg,rgba(28,0,56,.92),rgba(16,0,32,.96));border:1px solid #a855f755;border-left:3px solid #a855f7;box-shadow:0 0 18px rgba(168,85,247,.1)}
+.card-auction{background:linear-gradient(135deg,rgba(30,20,0,.95),rgba(20,12,0,.98));border:2px solid #f59e0b;box-shadow:0 0 20px rgba(245,158,11,.2)}
+.card-offer{background:linear-gradient(135deg,rgba(10,8,30,.95),rgba(6,5,20,.98));border:2px solid #818cf8;box-shadow:0 0 20px rgba(129,140,248,.15)}
+.badge{font-size:8px;padding:2px 6px;border-radius:2px;font-weight:bold}
+.badge-live{color:#00ff9d;background:rgba(0,255,157,.08);border:1px solid rgba(0,255,157,.2)}
+.badge-buy{background:#00ff9d;color:#001a0d}
+.badge-bow{background:#a855f7;color:#fff}
+.badge-auc{color:#f59e0b;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3)}
+.badge-off{color:#818cf8;background:rgba(129,140,248,.15);border:1px solid rgba(129,140,248,.3)}
+.badge-ok{color:#00ff9d;border:1px solid rgba(0,255,157,.3)}
+.badge-warn{color:#f5c842;border:1px solid rgba(245,200,66,.3)}
+.card-title{font-size:13px;font-weight:bold;color:#fff}
+.card-desc{font-size:11px;color:#7a9ab0;line-height:1.4;word-break:break-word;margin:6px 0}
+.card-img{width:100px;height:80px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,.05);border:1px solid #1a2a3a;margin-bottom:6px;display:block}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,1fr));gap:8px;margin-bottom:8px}
+.field-label{font-size:7px;color:#4a7a9b;letter-spacing:1px;margin-bottom:1px}
+.field-val{font-size:12px;font-weight:bold}
+.comps{display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.comp-price{font-size:9px;color:#5a9ab0;background:rgba(0,150,200,.1);padding:1px 5px;border-radius:2px}
+.btn-view{display:inline-block;text-decoration:none;padding:7px 14px;border-radius:4px;font-size:10px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1px;color:#fff}
+.btn-view-hot{background:linear-gradient(135deg,#00b87d,#008a5a);box-shadow:0 0 12px rgba(0,200,125,.4)}
+.btn-view-bow{background:linear-gradient(135deg,#7c3aed,#5b21b6);box-shadow:0 0 12px rgba(168,85,247,.5)}
+.btn-view-auc{background:linear-gradient(135deg,#d97706,#b45309);box-shadow:0 0 14px rgba(245,158,11,.5)}
+.btn-view-off{background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 0 14px rgba(129,140,248,.4)}
+.btn-view-plain{background:rgba(0,150,200,.15);border:1px solid #1a4a6a}
+.offer-ladder{background:rgba(129,140,248,.06);border:1px solid rgba(129,140,248,.15);border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.offer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.offer-col{background:rgba(0,0,0,.3);border-radius:4px;padding:8px 6px;text-align:center}
+.offer-label{font-size:7px;margin-bottom:2px}
+.offer-sub{font-size:7px;color:#4a6a7a;margin-bottom:4px}
+.offer-price{font-size:16px;font-weight:bold}
+.offer-roi{font-size:9px;color:#7a9ab0;margin-top:2px}
+.sidebar{position:sticky;top:16px;display:flex;flex-direction:column;gap:9px}
+.sidebar-box{background:rgba(0,0,0,.3);border:1px solid #1a2a3a;border-radius:6px;padding:11px}
+.sidebar-log{background:rgba(0,0,0,.45);border:1px solid #0a2a1a;border-radius:6px;overflow:hidden}
+.log-header{padding:8px 12px;background:rgba(0,255,157,.04);border-bottom:1px solid #0a2a1a;display:flex;justify-content:space-between;align-items:center}
+.log-title{font-size:9px;color:#00ff9d;letter-spacing:2px}
+.log-live{font-size:8px;color:#00cfff;animation:pulse 1s infinite}
+.log-body{height:280px;overflow-y:auto;padding:8px 11px;display:flex;flex-direction:column;gap:2px}
+.log-line{font-size:9px;line-height:1.5}
+.log-info{color:#4a7a8a}
+.log-alert{color:#00ff9d}
+.log-error{color:#ff6a7a}
+.sidebar-row{display:flex;justify-content:space-between;font-size:9px;margin-bottom:4px;border-bottom:1px solid #0a1a24;padding-bottom:3px}
+.sidebar-key{color:#4a7a9b}
+.sidebar-val{color:#8aacbc}
+.bowman-box{background:rgba(20,0,40,.5);border:1px solid #4a1a7a;border-radius:6px;padding:11px}
+.bowman-player{font-size:9px;color:#c4b5fd;font-weight:bold}
+.bowman-why{font-size:8px;color:#7a6a8a;line-height:1.4}
+.filter-row{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.tab{padding:3px 8px;border-radius:3px;cursor:pointer;font-size:9px;font-family:'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;border:1px solid #1a2a3a;background:transparent;color:#4a7a9b}
+.tab-active{background:#1a3a5a;border-color:#00cfff;color:#fff}
+.roi-slider{display:flex;align-items:center;gap:5px;margin-left:auto}
+.empty{text-align:center;padding:46px 20px;border:1px dashed #1a2a3a;border-radius:8px}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:12px;color:#4a7a9b;line-height:2}
+.spinning{animation:spin 2s linear infinite;display:inline-block}
+.toast-wrap{position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:290px}
+.toast{border-radius:6px;padding:11px 13px;animation:slideIn .3s ease;border-left-width:4px;border-left-style:solid}
+.toast-buy{background:linear-gradient(135deg,#001a0d,#002918)}
+.toast-auc{background:linear-gradient(135deg,#1a1000,#2a1800)}
+.toast-title{font-size:9px;font-weight:bold;margin-bottom:3px}
+.toast-player{font-size:12px;font-weight:bold;color:#fff;margin-bottom:2px}
+.toast-desc{font-size:10px;color:#8ab;margin-bottom:4px}
+.toast-link{font-size:11px;color:#00cfff;text-decoration:underline}
+input[type=range]{accent-color:#00ff9d;width:70px}
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="grid-bg"></div>
+<div class="toast-wrap" id="toasts"></div>
+<div id="root"><div style="text-align:center;padding:60px;color:#00ff9d;font-size:20px">Loading CARDARB...</div></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-<script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-
+<script>
 const PROXY   = "https://cardarb-proxy-production.up.railway.app";
 const ROI_MIN = 0.10;
 const AUC_MIN = 0.20;
@@ -36,18 +134,18 @@ function calcROI(salePrice, buyCost, buyShip) {
   return { net, fees, sellShip, cost, profit: net - cost, roi: (net - cost) / cost };
 }
 
-function calcOffers(askPrice, market, ship) {
-  const sellShip  = market > 50 ? 10 : 5;
-  const netSale   = market - (market * FVF) - ORDER - sellShip;
-  const buyShip   = ship || 5;
-  const low       = Math.max(Math.floor(Math.min(askPrice * 0.60, (netSale / 1.30) - buyShip)), 1);
-  const target    = Math.max(Math.floor((netSale / 1.20) - buyShip), 1);
-  const max       = Math.max(Math.floor((netSale / 1.10) - buyShip), 1);
-  const roiAt     = (o) => { const c = o + buyShip; return (netSale - c) / c; };
+function calcOffers(ask, market, ship) {
+  const sellShip = market > 50 ? 10 : 5;
+  const netSale  = market - (market * FVF) - ORDER - sellShip;
+  const bs       = ship || 5;
+  const low      = Math.max(Math.floor(Math.min(ask * 0.60, (netSale / 1.30) - bs)), 1);
+  const target   = Math.max(Math.floor((netSale / 1.20) - bs), 1);
+  const max      = Math.max(Math.floor((netSale / 1.10) - bs), 1);
+  const roiAt    = o => { const c = o + bs; return (netSale - c) / c; };
   return { low, target, max, roiLow: roiAt(low), roiTarget: roiAt(target), roiMax: roiAt(max), netSale, sellShip };
 }
 
-const f$  = n => `$${Number(n}`).toFixed(2);
+const f$  = n => "$" + Number(n).toFixed(2);
 const fR  = r => (r >= 0 ? "+" : "") + (r * 100).toFixed(1) + "%";
 const slp = ms => new Promise(r => setTimeout(r, ms));
 
@@ -55,528 +153,553 @@ const SC = { baseball:"#e05c3a", football:"#4a9d6f", basketball:"#d4872a", bowma
 const SI = { baseball:"⚾", football:"🏈", basketball:"🏀", bowman:"🔮" };
 
 const TIER1 = [
-  {sport:"baseball",player:"Shohei Ohtani",      binQ:"Shohei Ohtani 2018 Topps Chrome 150 PSA 10",           soldQ:"Shohei Ohtani 2018 Topps Chrome PSA 10",           maxBuy:400},
-  {sport:"baseball",player:"Ronald Acuna Jr",    binQ:"Ronald Acuna 2018 Topps Chrome Update HMT32 PSA 10",   soldQ:"Ronald Acuna Topps Chrome PSA 10",                 maxBuy:300},
-  {sport:"baseball",player:"Paul Skenes",        binQ:"Paul Skenes 2024 Topps Chrome 101 PSA 10",              soldQ:"Paul Skenes 2024 Topps Chrome PSA 10",             maxBuy:500},
-  {sport:"baseball",player:"Gunnar Henderson",   binQ:"Gunnar Henderson 2023 Topps Chrome 212 PSA 10",         soldQ:"Gunnar Henderson Topps Chrome PSA 10",             maxBuy:200},
-  {sport:"baseball",player:"Bobby Witt Jr",      binQ:"Bobby Witt Jr 2022 Topps Chrome 14 PSA 10",             soldQ:"Bobby Witt Jr Topps Chrome PSA 10",                maxBuy:150},
-  {sport:"baseball",player:"Juan Soto",          binQ:"Juan Soto 2018 Topps Chrome HMT31 PSA 10",              soldQ:"Juan Soto Topps Chrome PSA 10",                    maxBuy:250},
-  {sport:"baseball",player:"Julio Rodriguez",    binQ:"Julio Rodriguez 2022 Topps Chrome 180 PSA 10",          soldQ:"Julio Rodriguez Topps Chrome PSA 10",              maxBuy:120},
-  {sport:"baseball",player:"Mookie Betts",       binQ:"Mookie Betts 2014 Topps Chrome 38 PSA 10",              soldQ:"Mookie Betts Topps Chrome PSA 10",                 maxBuy:300},
-  {sport:"football",player:"Patrick Mahomes",    binQ:"Mahomes 2017 Panini Prizm 269 PSA 10",                  soldQ:"Mahomes 2017 Prizm PSA 10",                        maxBuy:500},
-  {sport:"football",player:"Josh Allen",         binQ:"Josh Allen 2018 Panini Prizm PSA 10",                   soldQ:"Josh Allen 2018 Prizm PSA 10",                     maxBuy:400},
-  {sport:"football",player:"Lamar Jackson",      binQ:"Lamar Jackson 2018 Panini Prizm PSA 10",                soldQ:"Lamar Jackson 2018 Prizm PSA 10",                  maxBuy:300},
-  {sport:"football",player:"CJ Stroud",          binQ:"CJ Stroud 2023 Panini Prizm PSA 10",                    soldQ:"CJ Stroud 2023 Prizm PSA 10",                      maxBuy:200},
-  {sport:"football",player:"Caleb Williams",     binQ:"Caleb Williams 2024 Panini Prizm PSA 10",               soldQ:"Caleb Williams 2024 Prizm PSA 10",                 maxBuy:300},
-  {sport:"football",player:"Jayden Daniels",     binQ:"Jayden Daniels 2024 Panini Prizm PSA 10",               soldQ:"Jayden Daniels 2024 Prizm PSA 10",                 maxBuy:200},
-  {sport:"football",player:"Justin Jefferson",   binQ:"Justin Jefferson 2020 Panini Prizm PSA 10",             soldQ:"Justin Jefferson 2020 Prizm PSA 10",               maxBuy:300},
-  {sport:"basketball",player:"Wembanyama",       binQ:"Wembanyama 2023 Panini Prizm PSA 10",                   soldQ:"Wembanyama 2023 Prizm PSA 10",                     maxBuy:500},
-  {sport:"basketball",player:"Luka Doncic",      binQ:"Luka Doncic 2018 Panini Prizm PSA 10",                  soldQ:"Luka Doncic 2018 Prizm PSA 10",                    maxBuy:500},
-  {sport:"basketball",player:"Anthony Edwards",  binQ:"Anthony Edwards 2020 Panini Prizm PSA 10",              soldQ:"Anthony Edwards 2020 Prizm PSA 10",                maxBuy:300},
-  {sport:"basketball",player:"SGA",              binQ:"Shai Gilgeous-Alexander 2018 Panini Prizm PSA 10",      soldQ:"Shai Gilgeous-Alexander 2018 Prizm PSA 10",        maxBuy:300},
-  {sport:"basketball",player:"Jayson Tatum",     binQ:"Jayson Tatum 2017 Panini Prizm PSA 10",                 soldQ:"Jayson Tatum 2017 Prizm PSA 10",                   maxBuy:300},
-  {sport:"basketball",player:"Nikola Jokic",     binQ:"Nikola Jokic 2015 Panini Prizm PSA 10",                 soldQ:"Nikola Jokic 2015 Prizm PSA 10",                   maxBuy:400},
-  {sport:"bowman",player:"Ethan Salas",          binQ:"Ethan Salas 2023 Bowman Chrome auto PSA 10",            soldQ:"Ethan Salas Bowman Chrome auto PSA 10",            maxBuy:300,rank:1,  why:"#1 prospect, elite switch-hitting catcher"},
-  {sport:"bowman",player:"Roman Anthony",        binQ:"Roman Anthony 2023 Bowman Chrome auto PSA 10",          soldQ:"Roman Anthony Bowman Chrome auto PSA 10",          maxBuy:200,rank:2,  why:"Top OF, Red Sox, elite hit tool"},
-  {sport:"bowman",player:"Jackson Holliday",     binQ:"Jackson Holliday 2022 Bowman Chrome auto PSA 10",       soldQ:"Jackson Holliday Bowman Chrome auto PSA 10",       maxBuy:300,rank:3,  why:"Orioles SS, elite pedigree"},
-  {sport:"bowman",player:"Paul Skenes",          binQ:"Paul Skenes 2021 Bowman Chrome auto PSA 10",            soldQ:"Paul Skenes Bowman Chrome auto PSA 10",            maxBuy:400,rank:4,  why:"Ace pitcher, NL ROY"},
-  {sport:"bowman",player:"Dylan Crews",          binQ:"Dylan Crews 2023 Bowman Chrome auto PSA 10",            soldQ:"Dylan Crews Bowman Chrome auto PSA 10",            maxBuy:150,rank:5,  why:"Nationals OF, power-speed"},
-  {sport:"bowman",player:"Cam Collier",          binQ:"Cam Collier 2022 Bowman Chrome auto PSA 10",            soldQ:"Cam Collier Bowman Chrome auto PSA 10",            maxBuy:150,rank:6,  why:"Power 3B, Reds"},
+  {sport:"baseball", player:"Shohei Ohtani",     binQ:"Shohei Ohtani 2018 Topps Chrome 150 PSA 10",          soldQ:"Shohei Ohtani 2018 Topps Chrome PSA 10",    maxBuy:400},
+  {sport:"baseball", player:"Ronald Acuna Jr",   binQ:"Ronald Acuna 2018 Topps Chrome Update HMT32 PSA 10",  soldQ:"Ronald Acuna Topps Chrome PSA 10",          maxBuy:300},
+  {sport:"baseball", player:"Paul Skenes",       binQ:"Paul Skenes 2024 Topps Chrome 101 PSA 10",             soldQ:"Paul Skenes Topps Chrome PSA 10",           maxBuy:500},
+  {sport:"baseball", player:"Gunnar Henderson",  binQ:"Gunnar Henderson 2023 Topps Chrome 212 PSA 10",        soldQ:"Gunnar Henderson Topps Chrome PSA 10",      maxBuy:200},
+  {sport:"baseball", player:"Bobby Witt Jr",     binQ:"Bobby Witt Jr 2022 Topps Chrome 14 PSA 10",            soldQ:"Bobby Witt Jr Topps Chrome PSA 10",         maxBuy:150},
+  {sport:"baseball", player:"Juan Soto",         binQ:"Juan Soto 2018 Topps Chrome HMT31 PSA 10",             soldQ:"Juan Soto Topps Chrome PSA 10",             maxBuy:250},
+  {sport:"baseball", player:"Julio Rodriguez",   binQ:"Julio Rodriguez 2022 Topps Chrome 180 PSA 10",         soldQ:"Julio Rodriguez Topps Chrome PSA 10",       maxBuy:120},
+  {sport:"baseball", player:"Mookie Betts",      binQ:"Mookie Betts 2014 Topps Chrome 38 PSA 10",             soldQ:"Mookie Betts Topps Chrome PSA 10",          maxBuy:300},
+  {sport:"football", player:"Patrick Mahomes",   binQ:"Mahomes 2017 Panini Prizm 269 PSA 10",                 soldQ:"Mahomes 2017 Prizm PSA 10",                 maxBuy:500},
+  {sport:"football", player:"Josh Allen",        binQ:"Josh Allen 2018 Panini Prizm PSA 10",                  soldQ:"Josh Allen 2018 Prizm PSA 10",              maxBuy:400},
+  {sport:"football", player:"Lamar Jackson",     binQ:"Lamar Jackson 2018 Panini Prizm PSA 10",               soldQ:"Lamar Jackson 2018 Prizm PSA 10",           maxBuy:300},
+  {sport:"football", player:"CJ Stroud",         binQ:"CJ Stroud 2023 Panini Prizm PSA 10",                   soldQ:"CJ Stroud 2023 Prizm PSA 10",               maxBuy:200},
+  {sport:"football", player:"Caleb Williams",    binQ:"Caleb Williams 2024 Panini Prizm PSA 10",              soldQ:"Caleb Williams 2024 Prizm PSA 10",          maxBuy:300},
+  {sport:"football", player:"Jayden Daniels",    binQ:"Jayden Daniels 2024 Panini Prizm PSA 10",              soldQ:"Jayden Daniels 2024 Prizm PSA 10",          maxBuy:200},
+  {sport:"football", player:"Justin Jefferson",  binQ:"Justin Jefferson 2020 Panini Prizm PSA 10",            soldQ:"Justin Jefferson 2020 Prizm PSA 10",        maxBuy:300},
+  {sport:"basketball",player:"Wembanyama",       binQ:"Wembanyama 2023 Panini Prizm PSA 10",                  soldQ:"Wembanyama 2023 Prizm PSA 10",              maxBuy:500},
+  {sport:"basketball",player:"Luka Doncic",      binQ:"Luka Doncic 2018 Panini Prizm PSA 10",                 soldQ:"Luka Doncic 2018 Prizm PSA 10",             maxBuy:500},
+  {sport:"basketball",player:"Anthony Edwards",  binQ:"Anthony Edwards 2020 Panini Prizm PSA 10",             soldQ:"Anthony Edwards 2020 Prizm PSA 10",         maxBuy:300},
+  {sport:"basketball",player:"SGA",              binQ:"Shai Gilgeous-Alexander 2018 Panini Prizm PSA 10",     soldQ:"Shai Gilgeous-Alexander 2018 Prizm PSA 10", maxBuy:300},
+  {sport:"basketball",player:"Jayson Tatum",     binQ:"Jayson Tatum 2017 Panini Prizm PSA 10",                soldQ:"Jayson Tatum 2017 Prizm PSA 10",            maxBuy:300},
+  {sport:"basketball",player:"Nikola Jokic",     binQ:"Nikola Jokic 2015 Panini Prizm PSA 10",                soldQ:"Nikola Jokic 2015 Prizm PSA 10",            maxBuy:400},
+  {sport:"bowman",   player:"Ethan Salas",       binQ:"Ethan Salas 2023 Bowman Chrome auto PSA 10",           soldQ:"Ethan Salas Bowman Chrome auto PSA 10",     maxBuy:300, rank:1,  why:"#1 prospect, elite switch-hitting catcher"},
+  {sport:"bowman",   player:"Roman Anthony",     binQ:"Roman Anthony 2023 Bowman Chrome auto PSA 10",         soldQ:"Roman Anthony Bowman Chrome auto PSA 10",   maxBuy:200, rank:2,  why:"Top OF, Red Sox, elite hit tool"},
+  {sport:"bowman",   player:"Jackson Holliday",  binQ:"Jackson Holliday 2022 Bowman Chrome auto PSA 10",      soldQ:"Jackson Holliday Bowman Chrome auto PSA 10",maxBuy:300, rank:3,  why:"Orioles SS, elite pedigree"},
+  {sport:"bowman",   player:"Paul Skenes",       binQ:"Paul Skenes 2021 Bowman Chrome auto PSA 10",           soldQ:"Paul Skenes Bowman Chrome auto PSA 10",     maxBuy:400, rank:4,  why:"Ace pitcher, NL ROY"},
+  {sport:"bowman",   player:"Dylan Crews",       binQ:"Dylan Crews 2023 Bowman Chrome auto PSA 10",           soldQ:"Dylan Crews Bowman Chrome auto PSA 10",     maxBuy:150, rank:5,  why:"Nationals OF, power-speed"},
+  {sport:"bowman",   player:"Cam Collier",       binQ:"Cam Collier 2022 Bowman Chrome auto PSA 10",           soldQ:"Cam Collier Bowman Chrome auto PSA 10",     maxBuy:150, rank:6,  why:"Power 3B, Reds"},
 ];
 
 const TIER2 = [
-  {sport:"baseball",player:"Elly De La Cruz",    binQ:"Elly De La Cruz 2023 Topps Chrome PSA 10",              soldQ:"Elly De La Cruz 2023 Topps Chrome PSA 10",         maxBuy:150},
-  {sport:"baseball",player:"Yordan Alvarez",     binQ:"Yordan Alvarez 2019 Topps Chrome PSA 10",               soldQ:"Yordan Alvarez 2019 Topps Chrome PSA 10",          maxBuy:200},
-  {sport:"baseball",player:"Adley Rutschman",    binQ:"Adley Rutschman 2022 Topps Chrome PSA 10",              soldQ:"Adley Rutschman 2022 Topps Chrome PSA 10",         maxBuy:100},
-  {sport:"baseball",player:"Wyatt Langford",     binQ:"Wyatt Langford 2024 Topps Chrome PSA 10",               soldQ:"Wyatt Langford 2024 Topps Chrome PSA 10",          maxBuy:150},
-  {sport:"football",player:"Drake Maye",         binQ:"Drake Maye 2024 Panini Prizm PSA 10",                   soldQ:"Drake Maye 2024 Prizm PSA 10",                     maxBuy:200},
-  {sport:"football",player:"Marvin Harrison Jr", binQ:"Marvin Harrison Jr 2024 Panini Prizm PSA 10",           soldQ:"Marvin Harrison Jr 2024 Prizm PSA 10",             maxBuy:200},
-  {sport:"football",player:"Brock Purdy",        binQ:"Brock Purdy 2022 Panini Prizm PSA 10",                  soldQ:"Brock Purdy 2022 Prizm PSA 10",                    maxBuy:150},
-  {sport:"football",player:"Jordan Love",        binQ:"Jordan Love 2020 Panini Prizm PSA 10",                  soldQ:"Jordan Love 2020 Prizm PSA 10",                    maxBuy:150},
-  {sport:"basketball",player:"Paolo Banchero",   binQ:"Paolo Banchero 2022 Panini Prizm PSA 10",               soldQ:"Paolo Banchero 2022 Prizm PSA 10",                 maxBuy:150},
-  {sport:"basketball",player:"Evan Mobley",      binQ:"Evan Mobley 2021 Panini Prizm PSA 10",                  soldQ:"Evan Mobley 2021 Prizm PSA 10",                    maxBuy:100},
-  {sport:"basketball",player:"Franz Wagner",     binQ:"Franz Wagner 2021 Panini Prizm PSA 10",                 soldQ:"Franz Wagner 2021 Prizm PSA 10",                   maxBuy:100},
-  {sport:"basketball",player:"Tyrese Haliburton",binQ:"Tyrese Haliburton 2020 Panini Prizm PSA 10",            soldQ:"Tyrese Haliburton 2020 Prizm PSA 10",              maxBuy:100},
-  {sport:"bowman",player:"Chase Burns",          binQ:"Chase Burns 2022 Bowman Chrome auto PSA 10",            soldQ:"Chase Burns Bowman Chrome auto PSA 10",            maxBuy:200,rank:7,  why:"Elite RHP, Reds"},
-  {sport:"bowman",player:"Termarr Johnson",      binQ:"Termarr Johnson 2022 Bowman Chrome auto PSA 10",        soldQ:"Termarr Johnson Bowman Chrome auto PSA 10",        maxBuy:100,rank:12, why:"Pirates 2B, elite hit tool"},
-  {sport:"bowman",player:"Kyle Teel",            binQ:"Kyle Teel 2022 Bowman Chrome auto PSA 10",              soldQ:"Kyle Teel Bowman Chrome auto PSA 10",              maxBuy:80, rank:15, why:"Red Sox C, advanced bat"},
-  {sport:"bowman",player:"Max Clark",            binQ:"Max Clark 2023 Bowman Chrome auto PSA 10",              soldQ:"Max Clark Bowman Chrome auto PSA 10",              maxBuy:150,rank:11, why:"Tigers OF, elite tools"},
-  {sport:"bowman",player:"Noble Meyer",          binQ:"Noble Meyer 2023 Bowman Chrome auto PSA 10",            soldQ:"Noble Meyer Bowman Chrome auto PSA 10",            maxBuy:150,rank:9,  why:"Top pitching prospect"},
-  {sport:"bowman",player:"Walker Jenkins",       binQ:"Walker Jenkins 2024 Bowman Chrome auto PSA 10",         soldQ:"Walker Jenkins Bowman Chrome auto PSA 10",         maxBuy:150,rank:8,  why:"Twins OF, 2024 5th pick"},
-  {sport:"bowman",player:"Jac Caglianone",       binQ:"Jac Caglianone 2024 Bowman Chrome auto PSA 10",         soldQ:"Jac Caglianone Bowman Chrome auto PSA 10",         maxBuy:150,rank:10, why:"Royals 1B/P, massive power"},
-  {sport:"bowman",player:"Konnor Griffin",       binQ:"Konnor Griffin 2023 Bowman Chrome auto PSA 10",         soldQ:"Konnor Griffin Bowman Chrome auto PSA 10",         maxBuy:100,rank:14, why:"White Sox SS, high ceiling"},
+  {sport:"baseball", player:"Elly De La Cruz",   binQ:"Elly De La Cruz 2023 Topps Chrome PSA 10",             soldQ:"Elly De La Cruz 2023 Topps Chrome PSA 10",  maxBuy:150},
+  {sport:"baseball", player:"Yordan Alvarez",    binQ:"Yordan Alvarez 2019 Topps Chrome PSA 10",              soldQ:"Yordan Alvarez 2019 Topps Chrome PSA 10",   maxBuy:200},
+  {sport:"baseball", player:"Adley Rutschman",   binQ:"Adley Rutschman 2022 Topps Chrome PSA 10",             soldQ:"Adley Rutschman 2022 Topps Chrome PSA 10",  maxBuy:100},
+  {sport:"football", player:"Drake Maye",        binQ:"Drake Maye 2024 Panini Prizm PSA 10",                  soldQ:"Drake Maye 2024 Prizm PSA 10",              maxBuy:200},
+  {sport:"football", player:"Marvin Harrison Jr",binQ:"Marvin Harrison Jr 2024 Panini Prizm PSA 10",          soldQ:"Marvin Harrison Jr 2024 Prizm PSA 10",      maxBuy:200},
+  {sport:"football", player:"Brock Purdy",       binQ:"Brock Purdy 2022 Panini Prizm PSA 10",                 soldQ:"Brock Purdy 2022 Prizm PSA 10",             maxBuy:150},
+  {sport:"basketball",player:"Paolo Banchero",   binQ:"Paolo Banchero 2022 Panini Prizm PSA 10",              soldQ:"Paolo Banchero 2022 Prizm PSA 10",          maxBuy:150},
+  {sport:"basketball",player:"Evan Mobley",      binQ:"Evan Mobley 2021 Panini Prizm PSA 10",                 soldQ:"Evan Mobley 2021 Prizm PSA 10",             maxBuy:100},
+  {sport:"bowman",   player:"Chase Burns",       binQ:"Chase Burns 2022 Bowman Chrome auto PSA 10",           soldQ:"Chase Burns Bowman Chrome auto PSA 10",     maxBuy:200, rank:7,  why:"Elite RHP, Reds"},
+  {sport:"bowman",   player:"Termarr Johnson",   binQ:"Termarr Johnson 2022 Bowman Chrome auto PSA 10",       soldQ:"Termarr Johnson Bowman Chrome auto PSA 10", maxBuy:100, rank:12, why:"Pirates 2B, elite hit tool"},
+  {sport:"bowman",   player:"Kyle Teel",         binQ:"Kyle Teel 2022 Bowman Chrome auto PSA 10",             soldQ:"Kyle Teel Bowman Chrome auto PSA 10",       maxBuy:80,  rank:15, why:"Red Sox C, advanced bat"},
+  {sport:"bowman",   player:"Max Clark",         binQ:"Max Clark 2023 Bowman Chrome auto PSA 10",             soldQ:"Max Clark Bowman Chrome auto PSA 10",       maxBuy:150, rank:11, why:"Tigers OF, elite tools"},
+  {sport:"bowman",   player:"Noble Meyer",       binQ:"Noble Meyer 2023 Bowman Chrome auto PSA 10",           soldQ:"Noble Meyer Bowman Chrome auto PSA 10",     maxBuy:150, rank:9,  why:"Top pitching prospect"},
+  {sport:"bowman",   player:"Walker Jenkins",    binQ:"Walker Jenkins 2024 Bowman Chrome auto PSA 10",        soldQ:"Walker Jenkins Bowman Chrome auto PSA 10",  maxBuy:150, rank:8,  why:"Twins OF, 2024 5th pick"},
+  {sport:"bowman",   player:"Jac Caglianone",    binQ:"Jac Caglianone 2024 Bowman Chrome auto PSA 10",        soldQ:"Jac Caglianone Bowman Chrome auto PSA 10",  maxBuy:150, rank:10, why:"Royals 1B/P, massive power"},
+  {sport:"bowman",   player:"Konnor Griffin",    binQ:"Konnor Griffin 2023 Bowman Chrome auto PSA 10",        soldQ:"Konnor Griffin Bowman Chrome auto PSA 10",  maxBuy:100, rank:14, why:"White Sox SS, high ceiling"},
 ];
 
-async function ping() {
-  try { const r = await fetch(PROXY + "/ping", {signal:AbortSignal.timeout(6000)}); return r.ok; }
-  catch { return false; }
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = {
+  deals: [], auctions: [], offers: [],
+  scanning: false, log: [], tab: "all", roiMin: 0,
+  lastScan: null, proxyOk: null, auto: false, cd: 0,
+  prog: { i: 0, n: 0, p: "" },
+};
+let abortScan = false;
+let autoTimer = null, cdTimer = null;
+let nid = 0;
+
+function setState(patch) {
+  Object.assign(state, typeof patch === "function" ? patch(state) : patch);
+  render();
 }
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function ping() {
+  try {
+    const r = await fetch(PROXY + "/ping", { signal: AbortSignal.timeout(6000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 async function apiFetch(path) {
   const r = await fetch(PROXY + path);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
 }
 
-function App() {
-  const [deals,    setDeals]    = useState([]);
-  const [auctions, setAuctions] = useState([]);
-  const [offers,   setOffers]   = useState([]);
-  const [scanning, setScanning] = useState(false);
-  const [log,      setLog]      = useState([]);
-  const [notifs,   setNotifs]   = useState([]);
-  const [tab,      setTab]      = useState("all");
-  const [roiMin,   setRoiMin]   = useState(0);
-  const [lastScan, setLastScan] = useState(null);
-  const [proxyOk,  setProxyOk]  = useState(null);
-  const [auto,     setAuto]     = useState(false);
-  const [cd,       setCd]       = useState(0);
-  const [prog,     setProg]     = useState({i:0,n:0,p:""});
-  const abort = useRef(null);
-  const intR  = useRef(null);
-  const cdR   = useRef(null);
-  const nid   = useRef(0);
-
-  useEffect(() => { ping().then(setProxyOk); }, []);
-
-  const addLog = useCallback((msg, type) => {
-    setLog(p => [...p.slice(-150), {msg, type: type||"info"}]);
-  }, []);
-
-  const pushNotif = useCallback((deal) => {
-    const id = ++nid.current;
-    setNotifs(p => [{id, deal}, ...p.slice(0, 7)]);
-    setTimeout(() => setNotifs(p => p.filter(n => n.id !== id)), 18000);
-  }, []);
-
-  const runScan = useCallback(async () => {
-    if (scanning) return;
-    const ok = await ping();
-    setProxyOk(ok);
-    if (!ok) { addLog("Proxy offline", "error"); return; }
-    setScanning(true);
-    setLog([]); setDeals([]); setAuctions([]); setOffers([]);
-    abort.current = new AbortController();
-    const allBIN = [], allAuc = [], allOff = [];
-
-    const processTarget = async (t, i, total, tier) => {
-      if (abort.current.signal.aborted) return;
-      setProg({i: i+1, n: total, p: t.player});
-      addLog("[" + (i+1) + "/" + total + "] " + t.player + ` ${tier}`);
-
-      const qs = `binQ=${encodeURIComponent(t.binQ}`) +
-                 `&soldQ=${encodeURIComponent(t.soldQ||t.binQ}`) +
-                 `&maxPrice=${t.maxBuy}`;
-
-      const [binData, aucData, offData] = await Promise.allSettled([
-        apiFetch(`/scan?${qs}`),
-        apiFetch(`/scan-auction?${qs}`),
-        apiFetch(`/scan-offer?${qs}`),
-      ]);
-
-      // BIN listings
-      if (binData.status === "fulfilled") {
-        const {listings, marketPrice, compCount, compSample, compWithImages} = binData.value;
-        if (marketPrice) addLog(`  Market: ${f$(marketPrice}`) + " (" + compCount + " comps)");
-        else addLog("  No market data");
-        for (const lst of (listings||[])) {
-          if (!lst.price || lst.price > t.maxBuy || !marketPrice) continue;
-          const ship = lst.freeShipping ? 0 : (lst.shippingCost||5);
-          const c    = calcROI(marketPrice, lst.price, ship);
-          const deal = {
-            id: lst.itemId+`-${i}`, type:"bin", sport:t.sport, player:t.player,
-            listing:lst, market:marketPrice, ship, ...c,
-            comps:compSample||[], compImgs:compWithImages||[],
-            rank:t.rank||0, why:t.why||"",
-          };
-          allBIN.push(deal);
-          setDeals([...allBIN].sort((a,b) => b.roi-a.roi));
-          if (c.roi >= ROI_MIN) { addLog(`  BUY: ${f$(lst.price}`) + ` -> ${fR(c.roi}`), "alert"); pushNotif(deal); }
-        }
-      }
-
-      // Auctions
-      if (aucData.status === "fulfilled") {
-        const {auctions: aList, marketPrice: aMarket} = aucData.value;
-        const mkt = aMarket || (binData.status==="fulfilled" ? binData.value.marketPrice : null);
-        for (const a of (aList||[])) {
-          if (!a.currentBid || !mkt) continue;
-          const ship = a.freeShipping ? 0 : (a.shippingCost||5);
-          const c    = calcROI(mkt, a.currentBid, ship);
-          if (c.roi >= AUC_MIN) {
-            const deal = {
-              id: a.itemId+"-auc", type:"auction", sport:t.sport, player:t.player,
-              listing:a, market:mkt, ship, ...c, hoursLeft:a.hoursLeft,
-              rank:t.rank||0, why:t.why||"",
-            };
-            allAuc.push(deal);
-            setAuctions([...allAuc].sort((a,b) => a.hoursLeft-b.hoursLeft));
-            addLog(`  AUCTION: ${f$(a.currentBid}`) + ` bid ${fR(c.roi}`) + " " + a.hoursLeft + "h left", "alert");
-            pushNotif({...deal, isAuction:true});
-          }
-        }
-      }
-
-      // Best Offers
-      if (offData.status === "fulfilled") {
-        const {offers: oList, marketPrice: oMarket} = offData.value;
-        const mkt = oMarket || (binData.status==="fulfilled" ? binData.value.marketPrice : null);
-        for (const o of (oList||[])) {
-          if (!mkt) continue;
-          const ship = o.freeShipping ? 0 : (o.shippingCost||5);
-          const oc   = calcOffers(o.price, mkt, ship);
-          if (oc.roiTarget >= ROI_MIN) {
-            allOff.push({
-              id: o.itemId+"-off", type:"offer", sport:t.sport, player:t.player,
-              listing:o, market:mkt, ship, ...oc,
-              rank:t.rank||0, why:t.why||"",
-            });
-            setOffers([...allOff].sort((a,b) => b.roiTarget-a.roiTarget));
-            addLog(`  OFFER: ${f$(o.price}`) + ` ask -> target ${f$(oc.target}`) + ` ${fR(oc.roiTarget}`), "alert");
-          }
-        }
-      }
-      await slp(1500);
-    };
-
-    // Tier 1
-    addLog("TIER 1 — " + TIER1.length + " targets", "info");
-    for (let i=0; i<TIER1.length; i++) {
-      await processTarget(TIER1[i], i, TIER1.length, "(T1)");
-    }
-
-    // Tier 2 only if no BIN deals
-    if (!abort.current.signal.aborted && allBIN.filter(d=>d.roi>=ROI_MIN).length===0) {
-      addLog("No ROI in Tier 1 — expanding to Tier 2...", "info");
-      for (let i=0; i<TIER2.length; i++) {
-        await processTarget(TIER2[i], i, TIER2.length, "(T2)");
-      }
-    }
-
-    const hot = allBIN.filter(d=>d.roi>=ROI_MIN);
-    addLog("Done — " + allBIN.length + " BIN | " + hot.length + " signals | " + allAuc.length + " auctions | " + allOff.length + " offers", hot.length||allAuc.length||allOff.length?"alert":"success");
-    setLastScan(new Date());
-    setScanning(false);
-    setProg({i:0,n:0,p:""});
-  }, [scanning, addLog, pushNotif]);
-
-  const stop = () => { abort.current?.abort(); setScanning(false); setProg({i:0,n:0,p:""}); addLog("Stopped."); };
-
-  useEffect(() => {
-    if (auto) {
-      runScan(); setCd(300);
-      intR.current = setInterval(() => { runScan(); setCd(300); }, 300000);
-      cdR.current  = setInterval(() => setCd(c => Math.max(0,c-1)), 1000);
-    } else {
-      clearInterval(intR.current); clearInterval(cdR.current); setCd(0);
-    }
-    return () => { clearInterval(intR.current); clearInterval(cdR.current); };
-  }, [auto]);
-
-  const filtered = deals.filter(d => (tab==="all"||d.sport===tab) && d.roi>=roiMin/100);
-  const hotCount = deals.filter(d=>d.roi>=ROI_MIN).length;
-  const pct      = prog.n ? Math.round(prog.i/prog.n*100) : 0;
-
-  return (
-    <div style={{minHeight:"100vh",background:"#080c10",overflowX:"hidden"}}>
-      <div style={{position:"fixed",inset:0,zIndex:0,pointerEvents:"none",backgroundImage:"linear-gradient(rgba(0,255,180,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.03) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
-
-      {/* Toast notifications */}
-      <div style={{position:"fixed",top:16,right:16,zIndex:1000,display:"flex",flexDirection:"column",gap:8,maxWidth:290}}>
-        {notifs.map(n => {
-          const ib = n.deal.sport==="bowman";
-          const isA = n.deal.isAuction;
-          const ac = isA ? "#f59e0b" : ib ? "#a855f7" : "#00ff9d";
-          return (
-            <div key={n.id} style={{background:"linear-gradient(135deg,#001a0d,#002918)",border:`1px solid ${ac}`,borderLeft:`4px solid ${ac}`,borderRadius:6,padding:"11px 13px",animation:"slideIn .3s ease"}}>
-              <div style={{fontSize:9,color:ac,fontWeight:"bold",marginBottom:3}}>
-                {isA ? "🔨 AUCTION" : "🚨 BUY SIGNAL"} — {n.deal.sport?.toUpperCase()}
-              </div>
-              <div style={{fontSize:12,fontWeight:"bold",color:"#fff",marginBottom:2}}>{n.deal.player}</div>
-              <div style={{fontSize:10,color:"#8ab",marginBottom:4}}>{n.deal.listing.title?.slice(0,50)}</div>
-              <div style={{display:"flex",gap:8,marginBottom:4}}>
-                <span style={{color:ac,fontWeight:"bold"}}>{isA ? fR(n.deal.roi) : fR(n.deal.roi)}</span>
-                <span style={{color:"#ccc",fontSize:11}}>{isA ? "bid " : "buy "}{f$(n.deal.listing.price||n.deal.listing.currentBid)}</span>
-              </div>
-              <a href={n.deal.listing.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#00cfff",textDecoration:"underline"}}>
-                {isA ? "BID NOW" : "VIEW LISTING"} ↗
-              </a>
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{maxWidth:1200,margin:"0 auto",padding:"18px 14px",position:"relative",zIndex:1}}>
-
-        {/* Header */}
-        <div style={{marginBottom:20,borderBottom:"1px solid #1a2a3a",paddingBottom:16}}>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-            <div>
-              <div style={{fontSize:9,letterSpacing:4,color:"#00ff9d",marginBottom:4}}>LIVE EBAY · BIN + AUCTIONS + BEST OFFER · 13.25% FEE MODEL</div>
-              <h1 style={{fontSize:"clamp(26px,6vw,42px)",fontWeight:900,margin:0,color:"#fff",letterSpacing:-1}}>CARD<span style={{color:"#00ff9d"}}>ARB</span></h1>
-              <div style={{fontSize:10,color:"#4a7a9b",marginTop:3}}>{TIER1.length} Tier 1 + {TIER2.length} Tier 2 · expands if no ROI found</div>
-            </div>
-            <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
-              <div style={{fontSize:9,padding:"4px 8px",borderRadius:3,background:proxyOk===true?"rgba(0,255,157,.1)":"rgba(255,80,80,.1)",border:`1px solid ${proxyOk===true?"#00ff9d":"#ff5050"}`,color:proxyOk===true?"#00ff9d":"#ff7070"}}>
-                {proxyOk===true?"● LIVE":proxyOk===false?"● OFFLINE":"● CHECKING"}
-              </div>
-              {lastScan && <div style={{fontSize:9,color:"#4a6a7a"}}>{lastScan.toLocaleTimeString()}{auto&&<span style={{color:"#00ff9d"}}> {cd}s</span>}</div>}
-              {scanning && <button onClick={stop} style={{background:"rgba(255,80,80,.15)",border:"1px solid #ff5050",color:"#ff7070",padding:"7px 11px",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>⏹ STOP</button>}
-              <button onClick={()=>setAuto(a=>!a)} style={{background:auto?"rgba(0,255,157,.15)":"transparent",border:`1px solid ${auto?"#00ff9d":"#2a4a5a"}`,color:auto?"#00ff9d":"#4a7a9b",padding:"7px 11px",borderRadius:4,cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{auto?"⏸ AUTO":"▶ AUTO"}</button>
-              <button onClick={runScan} disabled={scanning||proxyOk===false} style={{background:scanning||proxyOk===false?"rgba(0,200,255,.08)":"linear-gradient(135deg,#00b87d,#008a5a)",border:"none",color:"#fff",padding:"9px 18px",borderRadius:4,cursor:scanning||proxyOk===false?"not-allowed":"pointer",fontSize:11,fontWeight:"bold",fontFamily:"inherit",letterSpacing:2,opacity:scanning||proxyOk===false?.6:1,boxShadow:scanning||proxyOk===false?"none":"0 0 18px rgba(0,200,125,.4)"}}>
-                {scanning?"⟳ SCANNING":"⚡ SCAN NOW"}
-              </button>
-            </div>
-          </div>
-          {scanning && prog.n > 0 && (
-            <div style={{marginTop:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#4a7a9b",marginBottom:4}}>
-                <span>{prog.p} ({prog.i}/{prog.n})</span><span>{pct}%</span>
-              </div>
-              <div style={{height:3,background:"#0a1a24",borderRadius:2}}>
-                <div style={{height:"100%",borderRadius:2,background:"linear-gradient(90deg,#00b87d,#00ff9d)",width:`${pct}%`,transition:"width .5s",boxShadow:"0 0 8px rgba(0,255,157,.6)"}}/>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Stats */}
-        {(deals.length>0||auctions.length>0||offers.length>0) && (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:8,marginBottom:16}}>
-            {[
-              {l:"BIN",    v:deals.length,    c:"#00cfff"},
-              {l:"SIGNALS",v:hotCount,         c:hotCount>0?"#00ff9d":"#4a7a9b"},
-              {l:"AUCTIONS",v:auctions.length, c:auctions.length>0?"#f59e0b":"#4a7a9b"},
-              {l:"OFFERS", v:offers.length,    c:offers.length>0?"#818cf8":"#4a7a9b"},
-              {l:"BEST ROI",v:deals.length?fR(Math.max(...deals.map(d=>d.roi))):"-",c:"#f5c842"},
-            ].map(s=>(
-              <div key={s.l} style={{background:"rgba(255,255,255,.03)",border:"1px solid #1a2a3a",borderRadius:6,padding:"8px 10px"}}>
-                <div style={{fontSize:8,color:"#4a7a9b",letterSpacing:1,marginBottom:2}}>{s.l}</div>
-                <div style={{fontSize:15,fontWeight:"bold",color:s.c}}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 240px",gap:14,alignItems:"start"}}>
-          <div>
-
-            {/* Auction deals */}
-            {auctions.length>0 && (
-              <div style={{marginBottom:16}}>
-                <div style={{fontSize:10,color:"#f59e0b",letterSpacing:2,marginBottom:8}}>🔨 AUCTIONS ENDING SOON — 20%+ ROI</div>
-                {auctions.map(card => {
-                  const hrs = card.hoursLeft||0;
-                  const urg = hrs<2?"#ff4a6a":hrs<6?"#f59e0b":"#00ff9d";
-                  return (
-                    <div key={card.id} style={{background:"linear-gradient(135deg,rgba(30,20,0,.95),rgba(20,12,0,.98))",border:"2px solid #f59e0b",borderRadius:6,padding:"12px 14px",marginBottom:8,boxShadow:"0 0 20px rgba(245,158,11,.2)"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                        <div style={{display:"flex",gap:6}}>
-                          <span style={{fontSize:8,color:"#f59e0b",background:"rgba(245,158,11,.15)",border:"1px solid #f59e0b44",padding:"2px 6px",borderRadius:2}}>🔨 AUCTION</span>
-                          <span style={{fontSize:8,color:urg,border:`1px solid ${urg}44`,padding:"2px 6px",borderRadius:2}}>⏱ {hrs}h LEFT</span>
-                        </div>
-                        <span style={{fontSize:10,fontWeight:"bold",color:"#f59e0b"}}>{fR(card.roi)} ROI</span>
-                      </div>
-                      <div style={{fontSize:9,color:"#7a6a4a",marginBottom:4}}>{SI[card.sport]} {card.player}</div>
-                      <div style={{fontSize:11,color:"#b0a070",marginBottom:8,lineHeight:1.4}}>{card.listing.title}</div>
-                      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:8}}>
-                        <div><div style={{fontSize:8,color:"#7a6a4a"}}>CURRENT BID</div><div style={{fontSize:13,fontWeight:"bold",color:"#fff"}}>{f$(card.listing.currentBid)}</div></div>
-                        <div><div style={{fontSize:8,color:"#7a6a4a"}}>MARKET</div><div style={{fontSize:13,fontWeight:"bold",color:"#00cfff"}}>{f$(card.market)}</div></div>
-                        <div><div style={{fontSize:8,color:"#7a6a4a"}}>NET</div><div style={{fontSize:13,fontWeight:"bold",color:"#c084fc"}}>{f$(card.net)}</div></div>
-                        <div><div style={{fontSize:8,color:"#7a6a4a"}}>PROFIT</div><div style={{fontSize:13,fontWeight:"bold",color:"#f59e0b"}}>{f$(card.profit)}</div></div>
-                      </div>
-                      <a href={card.listing.url} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"linear-gradient(135deg,#d97706,#b45309)",color:"#fff",textDecoration:"none",padding:"8px 16px",borderRadius:4,fontSize:10,fontWeight:"bold",fontFamily:"inherit",boxShadow:"0 0 14px rgba(245,158,11,.5)"}}>
-                        🔨 BID NOW — {hrs}h LEFT ↗
-                      </a>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Best Offer deals */}
-            {offers.length>0 && (
-              <div style={{marginBottom:16}}>
-                <div style={{fontSize:10,color:"#818cf8",letterSpacing:2,marginBottom:8}}>💬 BEST OFFER OPPORTUNITIES</div>
-                {offers.map(card => (
-                  <div key={card.id} style={{background:"linear-gradient(135deg,rgba(10,8,30,.95),rgba(6,5,20,.98))",border:"2px solid #818cf8",borderRadius:6,padding:"12px 14px",marginBottom:8,boxShadow:"0 0 20px rgba(129,140,248,.15)"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                      <span style={{fontSize:8,color:"#818cf8",background:"rgba(129,140,248,.15)",border:"1px solid #818cf844",padding:"2px 6px",borderRadius:2}}>💬 BEST OFFER</span>
-                      <span style={{fontSize:10,fontWeight:"bold",color:"#818cf8"}}>{fR(card.roiTarget)} IF ACCEPTED</span>
-                    </div>
-                    <div style={{fontSize:9,color:"#7a7aaa",marginBottom:4}}>{SI[card.sport]} {card.player}</div>
-                    <div style={{fontSize:11,color:"#9090c0",marginBottom:8,lineHeight:1.4}}>{card.listing.title}</div>
-                    <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:10}}>
-                      <div><div style={{fontSize:8,color:"#4a4a7a"}}>ASKING</div><div style={{fontSize:13,fontWeight:"bold",color:"#888"}}>{f$(card.listing.price)}</div></div>
-                      <div><div style={{fontSize:8,color:"#4a4a7a"}}>MARKET</div><div style={{fontSize:13,fontWeight:"bold",color:"#00cfff"}}>{f$(card.market)}</div></div>
-                      <div><div style={{fontSize:8,color:"#4a4a7a"}}>NET IF SOLD</div><div style={{fontSize:13,fontWeight:"bold",color:"#c084fc"}}>{f$(card.netSale)}</div></div>
-                    </div>
-                    <div style={{background:"rgba(129,140,248,.06)",border:"1px solid #818cf822",borderRadius:6,padding:"10px 12px",marginBottom:10}}>
-                      <div style={{fontSize:8,color:"#818cf8",letterSpacing:2,marginBottom:8}}>OFFER LADDER</div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                        {[
-                          {label:"AGGRESSIVE", sub:"start here",   offer:card.low,    roi:card.roiLow,    color:"#34d399"},
-                          {label:"TARGET",     sub:"20% ROI",      offer:card.target, roi:card.roiTarget, color:"#818cf8"},
-                          {label:"MAX OFFER",  sub:"walk away above",offer:card.max,  roi:card.roiMax,    color:"#f59e0b"},
-                        ].map(o => (
-                          <div key={o.label} style={{background:"rgba(0,0,0,.3)",borderRadius:4,padding:"8px 6px",textAlign:"center",border:`1px solid ${o.color}33`}}>
-                            <div style={{fontSize:7,color:o.color,marginBottom:2}}>{o.label}</div>
-                            <div style={{fontSize:7,color:"#4a6a7a",marginBottom:4}}>{o.sub}</div>
-                            <div style={{fontSize:16,fontWeight:"bold",color:o.color}}>{f$(o.offer)}</div>
-                            <div style={{fontSize:9,color:"#7a9ab0",marginTop:2}}>{fR(o.roi)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <a href={card.listing.url} target="_blank" rel="noreferrer" style={{display:"inline-block",background:"linear-gradient(135deg,#6366f1,#4f46e5)",color:"#fff",textDecoration:"none",padding:"8px 16px",borderRadius:4,fontSize:10,fontWeight:"bold",fontFamily:"inherit",boxShadow:"0 0 14px rgba(129,140,248,.4)"}}>
-                      💬 MAKE OFFER ↗
-                    </a>
-                    <span style={{fontSize:9,color:"#4a4a7a",marginLeft:10}}>Start {f$(card.low)}, max {f$(card.max)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Filter tabs */}
-            {deals.length>0 && (
-              <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-                {["all","baseball","football","basketball","bowman"].map(s => (
-                  <button key={s} onClick={()=>setTab(s)} style={{background:tab===s?(s==="all"?"#1a3a5a":`${SC[s]||"#555"}28`):"transparent",border:`1px solid ${tab===s?(s==="all"?"#00cfff":SC[s]||"#555"):"#1a2a3a"}`,color:tab===s?"#fff":"#4a7a9b",padding:"3px 8px",borderRadius:3,cursor:"pointer",fontSize:9,fontFamily:"inherit",letterSpacing:1,textTransform:"uppercase"}}>
-                    {s==="all"?"ALL":s==="bowman"?"🔮 BOWMAN":(SI[s]+` ${s}`)}
-                  </button>
-                ))}
-                <div style={{display:"flex",alignItems:"center",gap:5,marginLeft:"auto"}}>
-                  <span style={{fontSize:9,color:"#4a7a9b"}}>MIN ROI</span>
-                  <input type="range" min={-50} max={50} value={roiMin} onChange={e=>setRoiMin(+e.target.value)} style={{width:70,accentColor:"#00ff9d"}}/>
-                  <span style={{fontSize:9,color:"#00ff9d",minWidth:32}}>{roiMin}%</span>
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {filtered.length===0&&!scanning&&deals.length===0&&auctions.length===0&&offers.length===0 && (
-              <div style={{textAlign:"center",padding:"46px 20px",border:"1px dashed #1a2a3a",borderRadius:8}}>
-                <div style={{fontSize:40,marginBottom:12}}>📡</div>
-                <div style={{fontSize:12,color:"#4a7a9b",lineHeight:2}}>
-                  <strong style={{color:"#00ff9d"}}>SCAN NOW</strong><br/>
-                  <span style={{fontSize:10}}>{TIER1.length}+{TIER2.length} targets · BIN + Auctions + Best Offer · $500 max</span>
-                </div>
-              </div>
-            )}
-
-            {scanning&&deals.length===0 && (
-              <div style={{textAlign:"center",padding:"28px 20px",border:"1px dashed #1a3a2a",borderRadius:8,marginBottom:10}}>
-                <div style={{fontSize:20,marginBottom:8,animation:"spin 2s linear infinite",display:"inline-block"}}>⟳</div>
-                <div style={{fontSize:11,color:"#4a7a9b"}}>Scanning eBay...</div>
-              </div>
-            )}
-
-            {/* BIN deals */}
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {filtered.map(card => {
-                const hot = card.roi>=ROI_MIN, neg = card.roi<0, ib = card.sport==="bowman";
-                const ac  = ib?"#a855f7":hot?"#00ff9d":neg?"#ff4a6a":"#f5c842";
-                return (
-                  <div key={card.id} style={{background:hot?(ib?"linear-gradient(135deg,rgba(28,0,56,.92),rgba(16,0,32,.96))":"linear-gradient(135deg,rgba(0,34,20,.92),rgba(0,18,11,.96))"):"rgba(255,255,255,.025)",border:`1px solid ${hot?(ib?"#a855f755":"#00ff9d55"):"#1a2a3a"}`,borderLeft:`3px solid ${ac}`,borderRadius:6,padding:"12px 14px",boxShadow:hot?`0 0 18px ${(ib?"rgba(168}`,85,247,.1)":"rgba(0,255,157,.08)"):"none"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                        <span style={{fontSize:8,padding:"2px 6px",borderRadius:2,background:`${SC[card.sport]||"#555"}22`,color:SC[card.sport]||"#888",border:`1px solid ${SC[card.sport]||"#555"}44`,letterSpacing:1}}>{SI[card.sport]} {card.sport?.toUpperCase()}</span>
-                        <span style={{fontSize:13,fontWeight:"bold",color:"#fff"}}>{card.player}</span>
-                        {card.rank>0&&<span style={{fontSize:9,color:"#a855f7",background:"rgba(168,85,247,.12)",padding:"1px 5px",borderRadius:2}}>#{card.rank}</span>}
-                        <span style={{fontSize:8,color:"#00ff9d",background:"rgba(0,255,157,.08)",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>LIVE</span>
-                        {card.listing.imageMatch===true&&<span style={{fontSize:8,color:"#00ff9d",border:"1px solid #00ff9d33",padding:"1px 5px",borderRadius:2}}>✅ VERIFIED</span>}
-                        {card.listing.imageMatch===null&&<span style={{fontSize:8,color:"#f5c842",border:"1px solid #f5c84233",padding:"1px 5px",borderRadius:2}}>⚠ UNVERIFIED</span>}
-                      </div>
-                      {hot&&<div style={{background:ib?"#a855f7":"#00ff9d",color:ib?"#fff":"#001a0d",fontSize:8,fontWeight:"bold",padding:"2px 7px",borderRadius:2,letterSpacing:2,flexShrink:0}}>{ib?"🔮 BUY":"🔥 BUY"}</div>}
-                    </div>
-                    {ib&&card.why&&<div style={{fontSize:9,color:"#c4b5fd",marginBottom:5,fontStyle:"italic"}}>{card.why}</div>}
-                    {card.listing.image&&<img src={card.listing.image} alt="" style={{width:100,height:80,objectFit:"contain",borderRadius:4,background:"rgba(255,255,255,.05)",border:"1px solid #1a2a3a",marginBottom:6,display:"block"}} onError={e=>e.target.style.display="none"}/>}
-                    <div style={{fontSize:11,color:"#7a9ab0",marginBottom:8,lineHeight:1.4,wordBreak:"break-word"}}>{card.listing.title}</div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:8,marginBottom:8}}>
-                      {[
-                        {l:"CARD PRICE",   v:f$(card.listing.price),                          c:"#fff"},
-                        {l:"BUY SHIPPING", v:card.listing.freeShipping?"FREE":f$(card.ship), c:"#aac"},
-                        {l:"TOTAL COST",   v:f$(card.cost),                                   c:"#ddd"},
-                        {l:"SELL MARKET",  v:f$(card.market),                                 c:"#00cfff"},
-                        {l:"EBAY FEES",    v:`-${f$(card.fees}`),                               c:"#ff9d6a"},
-                        {l:"SELL SHIP",    v:`-${f$(card.sellShip}`),                           c:"#ff9d6a"},
-                        {l:"NET",          v:f$(card.net),                                    c:"#c084fc"},
-                        {l:"PROFIT / ROI", v:f$(card.profit)+` / ${fR(card.roi}`),              c:ac},
-                      ].map(f => (
-                        <div key={f.l}>
-                          <div style={{fontSize:7,color:"#4a7a9b",letterSpacing:1,marginBottom:1}}>{f.l}</div>
-                          <div style={{fontSize:12,fontWeight:"bold",color:f.c}}>{f.v}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {card.comps?.length>0&&(
-                      <div style={{display:"flex",gap:3,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
-                        <span style={{fontSize:8,color:"#4a7a9b"}}>COMPS:</span>
-                        {card.comps.slice(0,6).map((c,i)=><span key={i} style={{fontSize:9,color:"#5a9ab0",background:"rgba(0,150,200,.1)",padding:"1px 5px",borderRadius:2}}>{f$(c)}</span>)}
-                      </div>
-                    )}
-                    <a href={card.listing.url} target="_blank" rel="noreferrer" style={{display:"inline-block",background:hot?(ib?"linear-gradient(135deg,#7c3aed,#5b21b6)":"linear-gradient(135deg,#00b87d,#008a5a)"):"rgba(0,150,200,.15)",color:"#fff",textDecoration:"none",padding:"7px 14px",borderRadius:4,fontSize:10,fontWeight:"bold",fontFamily:"inherit",letterSpacing:1,border:hot?"none":"1px solid #1a4a6a",boxShadow:hot?`0 0 12px ${(ib?"rgba(168}`,85,247,.5)":"rgba(0,200,125,.4)"):"none"}}>
-                      → VIEW LISTING ↗
-                    </a>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div style={{position:"sticky",top:16,display:"flex",flexDirection:"column",gap:9}}>
-            <div style={{background:"rgba(0,0,0,.45)",border:"1px solid #0a2a1a",borderRadius:6,overflow:"hidden"}}>
-              <div style={{padding:"8px 12px",background:"rgba(0,255,157,.04)",borderBottom:"1px solid #0a2a1a",display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:9,color:"#00ff9d",letterSpacing:2}}>SCAN LOG</span>
-                {scanning&&<span style={{fontSize:8,color:"#00cfff",animation:"pulse 1s infinite"}}>● LIVE</span>}
-              </div>
-              <div style={{height:280,overflowY:"auto",padding:"8px 11px",display:"flex",flexDirection:"column",gap:2}}>
-                {log.length===0
-                  ? <div style={{fontSize:10,color:"#1a3a4a",marginTop:16,textAlign:"center"}}>Awaiting scan…</div>
-                  : [...log].reverse().map((l,i)=>(
-                    <div key={i} style={{fontSize:9,lineHeight:1.5,color:l.type==="alert"?"#00ff9d":l.type==="error"?"#ff6a7a":"#4a7a8a"}}>{l.msg}</div>
-                  ))
-                }
-              </div>
-            </div>
-
-            <div style={{background:"rgba(0,0,0,.3)",border:"1px solid #1a2a3a",borderRadius:6,padding:11}}>
-              <div style={{fontSize:8,color:"#00cfff",letterSpacing:2,marginBottom:7}}>HOW IT WORKS</div>
-              {[
-                ["BIN ROI min","10%"],
-                ["Auction ROI min","20%"],
-                ["Offer target","20% ROI"],
-                ["eBay FVF","13.25%"],
-                ["Order fee","$0.30"],
-                ["Sell shipping","$5-$10"],
-                ["Max buy","$500"],
-                ["Tier 1 targets",`${TIER1.length]}`,
-                ["Tier 2 targets",`${TIER2.length]}`,
-              ].map(([k,v])=>(
-                <div key={k} style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:4,borderBottom:"1px solid #0a1a24",paddingBottom:3}}>
-                  <span style={{color:"#4a7a9b"}}>{k}</span>
-                  <span style={{color:"#8aacbc"}}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{background:"rgba(20,0,40,.5)",border:"1px solid #4a1a7a",borderRadius:6,padding:11}}>
-              <div style={{fontSize:8,color:"#a855f7",letterSpacing:2,marginBottom:7}}>🔮 BOWMAN PROSPECTS</div>
-              {[...TIER1,...TIER2].filter(t=>t.sport==="bowman").map(t=>(
-                <div key={t.player} style={{marginBottom:6}}>
-                  <div style={{fontSize:9,color:"#c4b5fd",fontWeight:"bold"}}>{t.player}{t.rank?` #${t.rank:""}`}</div>
-                  {t.why&&<div style={{fontSize:8,color:"#7a6a8a",lineHeight:1.4}}>{t.why}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+// ── Scan ──────────────────────────────────────────────────────────────────────
+function addLog(msg, type) {
+  state.log = [...state.log.slice(-150), { msg, type: type || "info" }];
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function pushNotif(deal) {
+  const id = ++nid;
+  const wrap = document.getElementById("toasts");
+  if (!wrap) return;
+  const el = document.createElement("div");
+  const isAuc = deal.isAuction;
+  const ac = isAuc ? "#f59e0b" : deal.sport === "bowman" ? "#a855f7" : "#00ff9d";
+  el.className = "toast " + (isAuc ? "toast-auc" : "toast-buy");
+  el.style.border = "1px solid " + ac;
+  el.style.borderLeftColor = ac;
+  el.innerHTML =
+    '<div class="toast-title" style="color:' + ac + '">' + (isAuc ? "🔨 AUCTION" : "🚨 BUY SIGNAL") + " — " + (deal.sport || "").toUpperCase() + "</div>" +
+    '<div class="toast-player">' + deal.player + "</div>" +
+    '<div class="toast-desc">' + (deal.listing.title || "").slice(0, 50) + "</div>" +
+    '<a href="' + deal.listing.url + '" target="_blank" class="toast-link">' + (isAuc ? "BID NOW" : "VIEW LISTING") + " ↗</a>";
+  wrap.prepend(el);
+  setTimeout(() => el.remove(), 18000);
+}
+
+async function processTarget(t, i, total, tier) {
+  if (abortScan) return;
+  const qs = "binQ=" + encodeURIComponent(t.binQ) + "&soldQ=" + encodeURIComponent(t.soldQ || t.binQ) + "&maxPrice=" + t.maxBuy;
+  addLog("[" + (i + 1) + "/" + total + "] " + t.player + " " + tier);
+  render();
+
+  state.prog = { i: i + 1, n: total, p: t.player };
+
+  const [binRes, aucRes, offRes] = await Promise.allSettled([
+    apiFetch("/scan?" + qs),
+    apiFetch("/scan-auction?" + qs),
+    apiFetch("/scan-offer?" + qs),
+  ]);
+
+  let market = null;
+
+  if (binRes.status === "fulfilled") {
+    const d = binRes.value;
+    market = d.marketPrice;
+    if (market) addLog("  Market: " + f$(market) + " (" + (d.compCount || 0) + " comps)");
+    else addLog("  No market data");
+
+    for (const lst of (d.listings || [])) {
+      if (!lst.price || lst.price > t.maxBuy || !market) continue;
+      const ship = lst.freeShipping ? 0 : (lst.shippingCost || 5);
+      const c = calcROI(market, lst.price, ship);
+      const deal = {
+        id: lst.itemId + "-" + i, type: "bin", sport: t.sport, player: t.player,
+        listing: lst, market, ship, comps: d.compSample || [], compImgs: d.compWithImages || [],
+        rank: t.rank || 0, why: t.why || "", ...c,
+      };
+      state.deals.push(deal);
+      state.deals.sort((a, b) => b.roi - a.roi);
+      if (c.roi >= ROI_MIN) { addLog("  BUY: " + f$(lst.price) + " -> " + fR(c.roi), "alert"); pushNotif(deal); }
+    }
+  }
+
+  if (aucRes.status === "fulfilled") {
+    const d = aucRes.value;
+    const mkt = d.marketPrice || market;
+    for (const a of (d.auctions || [])) {
+      if (!a.currentBid || !mkt) continue;
+      const ship = a.freeShipping ? 0 : (a.shippingCost || 5);
+      const c = calcROI(mkt, a.currentBid, ship);
+      if (c.roi >= AUC_MIN) {
+        const deal = {
+          id: a.itemId + "-auc", type: "auction", isAuction: true, sport: t.sport, player: t.player,
+          listing: a, market: mkt, ship, hoursLeft: a.hoursLeft, rank: t.rank || 0, why: t.why || "", ...c,
+        };
+        state.auctions.push(deal);
+        state.auctions.sort((a, b) => a.hoursLeft - b.hoursLeft);
+        addLog("  AUCTION: " + f$(a.currentBid) + " bid " + fR(c.roi) + " " + a.hoursLeft + "h left", "alert");
+        pushNotif(deal);
+      }
+    }
+  }
+
+  if (offRes.status === "fulfilled") {
+    const d = offRes.value;
+    const mkt = d.marketPrice || market;
+    for (const o of (d.offers || [])) {
+      if (!mkt) continue;
+      const ship = o.freeShipping ? 0 : (o.shippingCost || 5);
+      const oc = calcOffers(o.price, mkt, ship);
+      if (oc.roiTarget >= ROI_MIN) {
+        state.offers.push({
+          id: o.itemId + "-off", type: "offer", sport: t.sport, player: t.player,
+          listing: o, market: mkt, ship, rank: t.rank || 0, why: t.why || "", ...oc,
+        });
+        state.offers.sort((a, b) => b.roiTarget - a.roiTarget);
+        addLog("  OFFER: ask " + f$(o.price) + " target " + f$(oc.target) + " " + fR(oc.roiTarget), "alert");
+      }
+    }
+  }
+
+  render();
+  await slp(1500);
+}
+
+async function runScan() {
+  if (state.scanning) return;
+  const ok = await ping();
+  setState({ proxyOk: ok });
+  if (!ok) { addLog("Proxy offline", "error"); render(); return; }
+
+  abortScan = false;
+  setState({ scanning: true, log: [], deals: [], auctions: [], offers: [] });
+
+  addLog("TIER 1 — " + TIER1.length + " targets");
+  for (let i = 0; i < TIER1.length; i++) {
+    if (abortScan) break;
+    await processTarget(TIER1[i], i, TIER1.length, "(T1)");
+  }
+
+  if (!abortScan && state.deals.filter(d => d.roi >= ROI_MIN).length === 0) {
+    addLog("No ROI in Tier 1 — expanding to Tier 2...");
+    for (let i = 0; i < TIER2.length; i++) {
+      if (abortScan) break;
+      await processTarget(TIER2[i], i, TIER2.length, "(T2)");
+    }
+  }
+
+  const hot = state.deals.filter(d => d.roi >= ROI_MIN);
+  addLog("Done — " + state.deals.length + " BIN | " + hot.length + " signals | " + state.auctions.length + " auctions | " + state.offers.length + " offers", hot.length || state.auctions.length ? "alert" : "info");
+  setState({ scanning: false, lastScan: new Date(), prog: { i: 0, n: 0, p: "" } });
+}
+
+function stopScan() {
+  abortScan = true;
+  addLog("Stopped.");
+  setState({ scanning: false, prog: { i: 0, n: 0, p: "" } });
+}
+
+function toggleAuto() {
+  const auto = !state.auto;
+  setState({ auto });
+  if (auto) {
+    runScan();
+    state.cd = 300;
+    autoTimer = setInterval(() => { runScan(); state.cd = 300; }, 300000);
+    cdTimer   = setInterval(() => { state.cd = Math.max(0, state.cd - 1); render(); }, 1000);
+  } else {
+    clearInterval(autoTimer); clearInterval(cdTimer);
+    setState({ cd: 0 });
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function el(tag, attrs, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "className") e.className = v;
+    else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else e.setAttribute(k, v);
+  }
+  for (const child of children.flat()) {
+    if (child == null) continue;
+    e.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  return e;
+}
+
+function badge(text, cls) { return el("span", { className: "badge " + cls }, text); }
+
+function fieldRow(label, value, color) {
+  const d = el("div", {});
+  d.appendChild(el("div", { className: "field-label" }, label));
+  d.appendChild(el("div", { className: "field-val", style: { color: color || "#fff" } }, value));
+  return d;
+}
+
+function renderBINCard(card) {
+  const hot = card.roi >= ROI_MIN;
+  const ib  = card.sport === "bowman";
+  const ac  = ib ? "#a855f7" : hot ? "#00ff9d" : card.roi < 0 ? "#ff4a6a" : "#f5c842";
+  const cls = ib ? "card card-bin-bow" : hot ? "card card-bin-hot" : "card card-bin";
+
+  const header = el("div", { style: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"10px", flexWrap:"wrap", gap:"4px" } },
+    el("div", { style: { display:"flex", gap:"6px", alignItems:"center", flexWrap:"wrap" } },
+      el("span", { className:"badge", style:{ color: SC[card.sport]||"#888", background:(SC[card.sport]||"#555")+"22", border:"1px solid "+(SC[card.sport]||"#555")+"44", padding:"2px 6px", borderRadius:"2px", fontSize:"8px", letterSpacing:"1px" } }, (SI[card.sport]||"")+" "+(card.sport||"").toUpperCase()),
+      el("span", { className:"card-title" }, card.player),
+      card.rank ? badge("#" + card.rank, "badge") : null,
+      badge("LIVE", "badge badge-live"),
+      card.listing.imageMatch === true ? badge("✅ VERIFIED", "badge badge-ok") : null,
+      card.listing.imageMatch === null ? badge("⚠ UNVERIFIED", "badge badge-warn") : null,
+    ),
+    hot ? badge(ib ? "🔮 BUY" : "🔥 BUY", ib ? "badge badge-bow" : "badge badge-buy") : null,
+  );
+
+  const img = card.listing.image ? el("img", { src: card.listing.image, className:"card-img", onerror:"this.style.display='none'" }) : null;
+
+  const fields = el("div", { className:"fields" },
+    fieldRow("CARD PRICE",   f$(card.listing.price), "#fff"),
+    fieldRow("BUY SHIPPING", card.listing.freeShipping ? "FREE" : f$(card.ship), "#aac"),
+    fieldRow("TOTAL COST",   f$(card.cost), "#ddd"),
+    fieldRow("SELL MARKET",  f$(card.market), "#00cfff"),
+    fieldRow("EBAY FEES",    "-" + f$(card.fees), "#ff9d6a"),
+    fieldRow("SELL SHIP",    "-" + f$(card.sellShip), "#ff9d6a"),
+    fieldRow("NET",          f$(card.net), "#c084fc"),
+    fieldRow("PROFIT/ROI",   f$(card.profit) + " / " + fR(card.roi), ac),
+  );
+
+  const comps = card.comps && card.comps.length ? el("div", { className:"comps" },
+    el("span", { style:{ fontSize:"8px", color:"#4a7a9b" } }, "COMPS:"),
+    ...card.comps.slice(0, 6).map(c => el("span", { className:"comp-price" }, f$(c))),
+  ) : null;
+
+  const viewBtn = el("a", { href: card.listing.url, target:"_blank", className:"btn-view " + (hot ? (ib ? "btn-view-bow" : "btn-view-hot") : "btn-view-plain") }, "→ VIEW LISTING ↗");
+
+  const div = el("div", { className: cls });
+  div.appendChild(header);
+  if (ib && card.why) div.appendChild(el("div", { style:{ fontSize:"9px", color:"#c4b5fd", marginBottom:"5px", fontStyle:"italic" } }, card.why));
+  if (img) div.appendChild(img);
+  div.appendChild(el("div", { className:"card-desc" }, card.listing.title || ""));
+  div.appendChild(fields);
+  if (comps) div.appendChild(comps);
+  div.appendChild(viewBtn);
+  return div;
+}
+
+function renderAucCard(card) {
+  const hrs = card.hoursLeft || 0;
+  const urg = hrs < 2 ? "#ff4a6a" : hrs < 6 ? "#f59e0b" : "#00ff9d";
+
+  const div = el("div", { className:"card card-auction" });
+  div.appendChild(el("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" } },
+    el("div", { style:{ display:"flex", gap:"6px" } },
+      badge("🔨 AUCTION", "badge badge-auc"),
+      el("span", { className:"badge", style:{ color: urg, border:"1px solid "+urg+"44", padding:"2px 6px", borderRadius:"2px", fontSize:"8px" } }, "⏱ " + hrs + "h LEFT"),
+    ),
+    el("span", { style:{ fontSize:"10px", fontWeight:"bold", color:"#f59e0b" } }, fR(card.roi) + " ROI"),
+  ));
+  div.appendChild(el("div", { style:{ fontSize:"9px", color:"#7a6a4a", marginBottom:"4px" } }, (SI[card.sport]||"") + " " + card.player));
+  div.appendChild(el("div", { className:"card-desc", style:{ color:"#b0a070" } }, card.listing.title || ""));
+  div.appendChild(el("div", { className:"fields" },
+    fieldRow("CURRENT BID", f$(card.listing.currentBid), "#fff"),
+    fieldRow("MARKET",      f$(card.market), "#00cfff"),
+    fieldRow("NET",         f$(card.net), "#c084fc"),
+    fieldRow("PROFIT",      f$(card.profit), "#f59e0b"),
+  ));
+  div.appendChild(el("a", { href: card.listing.url, target:"_blank", className:"btn-view btn-view-auc" }, "🔨 BID NOW — " + hrs + "h LEFT ↗"));
+  return div;
+}
+
+function renderOfferCard(card) {
+  const div = el("div", { className:"card card-offer" });
+  div.appendChild(el("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" } },
+    badge("💬 BEST OFFER", "badge badge-off"),
+    el("span", { style:{ fontSize:"10px", fontWeight:"bold", color:"#818cf8" } }, fR(card.roiTarget) + " IF ACCEPTED"),
+  ));
+  div.appendChild(el("div", { style:{ fontSize:"9px", color:"#7a7aaa", marginBottom:"4px" } }, (SI[card.sport]||"") + " " + card.player));
+  div.appendChild(el("div", { className:"card-desc", style:{ color:"#9090c0" } }, card.listing.title || ""));
+  div.appendChild(el("div", { className:"fields" },
+    fieldRow("ASKING",    f$(card.listing.price), "#888"),
+    fieldRow("MARKET",    f$(card.market), "#00cfff"),
+    fieldRow("NET IF SOLD", f$(card.netSale), "#c084fc"),
+  ));
+
+  const ladder = el("div", { className:"offer-ladder" });
+  ladder.appendChild(el("div", { style:{ fontSize:"8px", color:"#818cf8", letterSpacing:"2px" } }, "OFFER LADDER"));
+  const grid = el("div", { className:"offer-grid" });
+  [
+    { label:"AGGRESSIVE", sub:"start here",    offer: card.low,    roi: card.roiLow,    color:"#34d399" },
+    { label:"TARGET",     sub:"20% ROI",        offer: card.target, roi: card.roiTarget, color:"#818cf8" },
+    { label:"MAX OFFER",  sub:"walk away above",offer: card.max,    roi: card.roiMax,    color:"#f59e0b" },
+  ].forEach(o => {
+    const col = el("div", { className:"offer-col", style:{ border:"1px solid "+o.color+"33" } });
+    col.appendChild(el("div", { className:"offer-label", style:{ color:o.color } }, o.label));
+    col.appendChild(el("div", { className:"offer-sub" }, o.sub));
+    col.appendChild(el("div", { className:"offer-price", style:{ color:o.color } }, f$(o.offer)));
+    col.appendChild(el("div", { className:"offer-roi" }, fR(o.roi)));
+    grid.appendChild(col);
+  });
+  ladder.appendChild(grid);
+  div.appendChild(ladder);
+  div.appendChild(el("a", { href: card.listing.url, target:"_blank", className:"btn-view btn-view-off" }, "💬 MAKE OFFER ↗"));
+  div.appendChild(el("span", { style:{ fontSize:"9px", color:"#4a4a7a", marginLeft:"10px" } }, "Start " + f$(card.low) + ", max " + f$(card.max)));
+  return div;
+}
+
+function render() {
+  const s = state;
+  const filtered = s.deals.filter(d => (s.tab === "all" || d.sport === s.tab) && d.roi >= s.roiMin / 100);
+  const hotCount = s.deals.filter(d => d.roi >= ROI_MIN).length;
+  const pct = s.prog.n ? Math.round(s.prog.i / s.prog.n * 100) : 0;
+  const hasResults = s.deals.length || s.auctions.length || s.offers.length;
+
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+
+  // Header
+  const hdr = el("div", { className:"header" });
+  const hdrRow = el("div", { className:"header-row" });
+
+  const logoDiv = el("div", {});
+  logoDiv.appendChild(el("div", { className:"tagline" }, "LIVE EBAY · BIN + AUCTIONS + BEST OFFER · 13.25% FEE MODEL"));
+  const logo = el("div", { className:"logo" });
+  logo.appendChild(document.createTextNode("CARD"));
+  logo.appendChild(el("span", {}, "ARB"));
+  logoDiv.appendChild(logo);
+  logoDiv.appendChild(el("div", { className:"subtitle" }, TIER1.length + " Tier 1 + " + TIER2.length + " Tier 2 · expands if no ROI found"));
+  hdrRow.appendChild(logoDiv);
+
+  const btnRow = el("div", { className:"btn-row" });
+  const statusCls = s.proxyOk === true ? "status status-live" : s.proxyOk === false ? "status status-off" : "status status-check";
+  const statusTxt = s.proxyOk === true ? "● LIVE" : s.proxyOk === false ? "● OFFLINE" : "● CHECKING";
+  btnRow.appendChild(el("div", { className: statusCls }, statusTxt));
+  if (s.lastScan) {
+    const ts = el("div", { style:{ fontSize:"9px", color:"#4a6a7a" } }, s.lastScan.toLocaleTimeString() + (s.auto ? "  " + s.cd + "s" : ""));
+    btnRow.appendChild(ts);
+  }
+  if (s.scanning) btnRow.appendChild(el("button", { className:"btn btn-stop", onclick: stopScan }, "⏹ STOP"));
+  const autoBtn = el("button", { className: "btn" + (s.auto ? " btn-auto-on" : ""), onclick: toggleAuto }, s.auto ? "⏸ AUTO" : "▶ AUTO");
+  btnRow.appendChild(autoBtn);
+  const scanBtn = el("button", { className:"btn btn-scan", onclick: runScan });
+  if (s.scanning || s.proxyOk === false) scanBtn.setAttribute("disabled", "true");
+  scanBtn.textContent = s.scanning ? "⟳ SCANNING" : "⚡ SCAN NOW";
+  btnRow.appendChild(scanBtn);
+  hdrRow.appendChild(btnRow);
+  hdr.appendChild(hdrRow);
+
+  if (s.scanning && s.prog.n > 0) {
+    const pb = el("div", { className:"progress-bar" });
+    pb.appendChild(el("div", { className:"progress-info" },
+      el("span", {}, s.prog.p + " (" + s.prog.i + "/" + s.prog.n + ")"),
+      el("span", {}, pct + "%"),
+    ));
+    const track = el("div", { className:"progress-track" });
+    track.appendChild(el("div", { className:"progress-fill", style:{ width: pct + "%" } }));
+    pb.appendChild(track);
+    hdr.appendChild(pb);
+  }
+  root.appendChild(hdr);
+
+  // Stats
+  if (hasResults) {
+    const bestROI = s.deals.length ? Math.max(...s.deals.map(d => d.roi)) : null;
+    const stats = el("div", { className:"stats" });
+    [
+      { l:"BIN",     v: s.deals.length,    c:"#00cfff" },
+      { l:"SIGNALS", v: hotCount,           c: hotCount > 0 ? "#00ff9d" : "#4a7a9b" },
+      { l:"AUCTIONS",v: s.auctions.length,  c: s.auctions.length > 0 ? "#f59e0b" : "#4a7a9b" },
+      { l:"OFFERS",  v: s.offers.length,    c: s.offers.length > 0 ? "#818cf8" : "#4a7a9b" },
+      { l:"BEST ROI",v: bestROI !== null ? fR(bestROI) : "-", c:"#f5c842" },
+    ].forEach(st => {
+      const box = el("div", { className:"stat" });
+      box.appendChild(el("div", { className:"stat-label" }, st.l));
+      box.appendChild(el("div", { className:"stat-val", style:{ color: st.c } }, String(st.v)));
+      stats.appendChild(box);
+    });
+    root.appendChild(stats);
+  }
+
+  // Main grid
+  const grid = el("div", { className:"main-grid" });
+  const main = el("div", {});
+
+  // Auctions section
+  if (s.auctions.length) {
+    main.appendChild(el("div", { className:"section-title", style:{ color:"#f59e0b" } }, "🔨 AUCTIONS ENDING SOON — 20%+ ROI"));
+    s.auctions.forEach(c => main.appendChild(renderAucCard(c)));
+  }
+
+  // Offers section
+  if (s.offers.length) {
+    main.appendChild(el("div", { className:"section-title", style:{ color:"#818cf8", marginTop: s.auctions.length ? "16px" : "0" } }, "💬 BEST OFFER OPPORTUNITIES"));
+    s.offers.forEach(c => main.appendChild(renderOfferCard(c)));
+  }
+
+  // Filter tabs
+  if (s.deals.length) {
+    const filterRow = el("div", { className:"filter-row" });
+    ["all","baseball","football","basketball","bowman"].forEach(sp => {
+      const active = s.tab === sp;
+      const btn = el("button", {
+        className: "tab" + (active ? " tab-active" : ""),
+        onclick: () => { state.tab = sp; render(); },
+      }, sp === "all" ? "ALL" : sp === "bowman" ? "🔮 BOWMAN" : (SI[sp] || "") + " " + sp.toUpperCase());
+      filterRow.appendChild(btn);
+    });
+    const roiWrap = el("div", { className:"roi-slider" });
+    roiWrap.appendChild(el("span", { style:{ fontSize:"9px", color:"#4a7a9b" } }, "MIN ROI"));
+    const slider = el("input", { type:"range", min:"-50", max:"50", value: String(s.roiMin) });
+    slider.addEventListener("input", e => { state.roiMin = +e.target.value; render(); });
+    roiWrap.appendChild(slider);
+    roiWrap.appendChild(el("span", { style:{ fontSize:"9px", color:"#00ff9d", minWidth:"32px" } }, s.roiMin + "%"));
+    filterRow.appendChild(roiWrap);
+    main.appendChild(filterRow);
+  }
+
+  // Empty state
+  if (!hasResults && !s.scanning) {
+    const empty = el("div", { className:"empty" });
+    empty.appendChild(el("div", { className:"empty-icon" }, "📡"));
+    const txt = el("div", { className:"empty-text" });
+    txt.innerHTML = "<strong style='color:#00ff9d'>SCAN NOW</strong><br><span style='font-size:10px'>" + TIER1.length + "+" + TIER2.length + " targets · BIN + Auctions + Best Offer · $500 max</span>";
+    empty.appendChild(txt);
+    main.appendChild(empty);
+  }
+
+  if (s.scanning && !s.deals.length) {
+    const spinner = el("div", { style:{ textAlign:"center", padding:"28px 20px", border:"1px dashed #1a3a2a", borderRadius:"8px", marginBottom:"10px" } });
+    spinner.appendChild(el("div", { className:"spinning", style:{ fontSize:"20px", marginBottom:"8px" } }, "⟳"));
+    spinner.appendChild(el("div", { style:{ fontSize:"11px", color:"#4a7a9b" } }, "Scanning eBay..."));
+    main.appendChild(spinner);
+  }
+
+  // BIN deals
+  filtered.forEach(card => main.appendChild(renderBINCard(card)));
+  grid.appendChild(main);
+
+  // Sidebar
+  const sidebar = el("div", { className:"sidebar" });
+
+  // Log
+  const logBox = el("div", { className:"sidebar-log" });
+  const logHdr = el("div", { className:"log-header" });
+  logHdr.appendChild(el("span", { className:"log-title" }, "SCAN LOG"));
+  if (s.scanning) logHdr.appendChild(el("span", { className:"log-live" }, "● LIVE"));
+  logBox.appendChild(logHdr);
+  const logBody = el("div", { className:"log-body" });
+  if (!s.log.length) {
+    logBody.appendChild(el("div", { style:{ fontSize:"10px", color:"#1a3a4a", marginTop:"16px", textAlign:"center" } }, "Awaiting scan…"));
+  } else {
+    [...s.log].reverse().forEach(l => {
+      logBody.appendChild(el("div", { className:"log-line log-" + l.type }, l.msg));
+    });
+  }
+  logBox.appendChild(logBody);
+  sidebar.appendChild(logBox);
+
+  // How it works
+  const howBox = el("div", { className:"sidebar-box" });
+  howBox.appendChild(el("div", { style:{ fontSize:"8px", color:"#00cfff", letterSpacing:"2px", marginBottom:"7px" } }, "HOW IT WORKS"));
+  [
+    ["BIN ROI min", "10%"], ["Auction ROI min", "20%"], ["Offer target", "20% ROI"],
+    ["eBay FVF", "13.25%"], ["Order fee", "$0.30"], ["Sell shipping", "$5-$10"],
+    ["Max buy", "$500"], ["Tier 1", String(TIER1.length)], ["Tier 2", String(TIER2.length)],
+  ].forEach(([k, v]) => {
+    const row = el("div", { className:"sidebar-row" });
+    row.appendChild(el("span", { className:"sidebar-key" }, k));
+    row.appendChild(el("span", { className:"sidebar-val" }, v));
+    howBox.appendChild(row);
+  });
+  sidebar.appendChild(howBox);
+
+  // Bowman prospects
+  const bowBox = el("div", { className:"bowman-box" });
+  bowBox.appendChild(el("div", { style:{ fontSize:"8px", color:"#a855f7", letterSpacing:"2px", marginBottom:"7px" } }, "🔮 BOWMAN PROSPECTS"));
+  [...TIER1, ...TIER2].filter(t => t.sport === "bowman").forEach(t => {
+    const d = el("div", { style:{ marginBottom:"6px" } });
+    d.appendChild(el("div", { className:"bowman-player" }, t.player + (t.rank ? " #" + t.rank : "")));
+    if (t.why) d.appendChild(el("div", { className:"bowman-why" }, t.why));
+    bowBox.appendChild(d);
+  });
+  sidebar.appendChild(bowBox);
+
+  grid.appendChild(sidebar);
+  root.appendChild(grid);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+render();
+ping().then(ok => { state.proxyOk = ok; render(); });
 </script>
 </body>
 </html>
